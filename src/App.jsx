@@ -328,6 +328,29 @@ export default function App() {
         return matchCat && matchSearch && matchPrice;
     });
 
+
+const brandLogos = {
+    "אלקטרה": "https://upload.wikimedia.org/wikipedia/he/thumb/4/4d/Electra_logo.svg/1200px-Electra_logo.svg.png",
+    "סאוטר": "https://www.sauter-appliances.co.il/wp-content/themes/sauter/images/logo.png",
+    "AEG": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/AEG_logo.svg/2560px-AEG_logo.svg.png",
+    "פוגיקום": "https://fujicom.co.il/wp-content/uploads/2018/10/logo.png",
+    "סמסונג": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Samsung_Logo.svg/2560px-Samsung_Logo.svg.png",
+    "LG": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/LG_logo_%282015%29.svg/2560px-LG_logo_%282015%29.svg.png",
+    "בוש": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Bosch-logo.svg/2560px-Bosch-logo.svg.png",
+    "תדיראן": "https://upload.wikimedia.org/wikipedia/he/1/1e/Tadiran_Group_Logo.png"
+};
+
+
+    const groups = {};
+    filtered.forEach(p => {
+        const brand = p.brand || "מותגים נבחרים";
+        if (!groups[brand]) groups[brand] = [];
+        groups[brand].push(p);
+    });
+    return groups;
+}, [filtered]);
+
+
     const categoryMap = { 
         "All": "הכל", "Fridges": "מקררים", "Freezers": "מקפיאים", "AC": "מזגנים", 
         "Washing": "כביסה", "Dryers": "מייבשים", "Ovens": "תנורים", "TV": "טלוויזיות", "Surplus": "מחלקת עודפים 🏷️"
@@ -397,36 +420,92 @@ export default function App() {
             <HeroSlider products={products} />
 
             {/* רשת מוצרים */}
-            <main className="max-w-7xl mx-auto p-6 md:p-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                {filtered.map(p => (
-                    <div key={p.id} className="bg-white p-6 rounded-3xl shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-2xl transition-all group relative">
-                        {/* בועת ביקורת חכמה */}
-                        <div className="absolute top-4 left-4 z-20">
-                            <button onMouseEnter={() => setActiveReviewBubble(p.id)} onMouseLeave={() => setActiveReviewBubble(null)} className="w-10 h-10 rounded-full bg-white/90 text-[#1e3a8a] flex items-center justify-center shadow-lg border border-blue-100 hover:scale-110 transition-transform">
-                                <i className="fa-solid fa-comment-dots text-lg"></i>
-                            </button>
-                            {activeReviewBubble === p.id && (
-                                <div className="absolute top-12 left-0 w-56 bg-[#1e3a8a] text-white p-4 rounded-2xl shadow-2xl z-50 text-xs border-2 border-[#FFD814] animate-bounce-in">
-                                    <div className="text-[#FFD814] mb-2 font-bold">★★★★★</div>
-                                    <p className="leading-tight italic font-medium">{p.reviews && p.reviews.length > 0 ? p.reviews[0].text : "עוד לא כתבו ביקורת - תהיה הראשון?"}</p>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="relative h-48 flex items-center justify-center mb-6 mt-6 cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                            <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={p.name}/>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-gray-800 text-sm mb-4 h-10 line-clamp-2 hover:text-[#1e3a8a] cursor-pointer" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
-                            <div className="flex items-baseline gap-2 mb-6">
-                                <span className="text-3xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
-                                <span className="text-xs text-gray-400 line-through">₪{Math.round(p.sellingPrice * 1.15)}</span>
-                            </div>
-                        </div>
-                        <button onClick={()=>(setCart([...cart, p]), setIsCartOpen(true))} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-xl font-black hover:bg-[#F7CA00] transition-all shadow-md active:scale-95">הוספה לסל</button>
+            <main> הקיימת בקוד הבא:
+JavaScript
+
+<main className="max-w-7xl mx-auto p-4 md:p-8 space-y-20">
+    {Object.keys(productsByBrand).length > 0 ? (
+        Object.keys(productsByBrand).map(brandName => (
+            <section key={brandName} className="relative animate-fade-in">
+                {/* כותרת המותג עם לוגו רשמי */}
+                <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 pb-4">
+                    <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-50 flex items-center justify-center min-w-[60px] h-12">
+                        {brandLogos[brandName] ? (
+                            <img src={brandLogos[brandName]} alt={brandName} className="max-h-full max-w-full object-contain" />
+                        ) : (
+                            <i className="fa-solid fa-tag text-[#1e3a8a] text-xl"></i>
+                        )}
                     </div>
-                ))}
-            </main>
+                    <div>
+                        <h2 className="text-2xl font-black text-[#1e3a8a] leading-none">{brandName}</h2>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Premium Collection</span>
+                    </div>
+                    <div className="mr-auto text-xs font-bold text-gray-300">
+                        {productsByBrand[brandName].length} דגמים זמינים
+                    </div>
+                </div>
+
+                {/* שורת מוצרים אופקית (Snap Scroll) */}
+                <div className="flex overflow-x-auto gap-6 pb-8 hide-scroll snap-x scroll-smooth">
+                    {productsByBrand[brandName].map(p => (
+                        <div key={p.id} className="min-w-[280px] md:min-w-[320px] snap-start bg-white p-6 rounded-[35px] shadow-md border border-gray-100 relative group hover:shadow-2xl transition-all duration-500">
+                            
+                            {/* לוגו מותג קטן ויוקרתי בתוך הכרטיס */}
+                            <div className="absolute top-6 right-6 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
+                                {brandLogos[brandName] && (
+                                    <img src={brandLogos[brandName]} className="h-4 w-auto object-contain grayscale group-hover:grayscale-0" alt="brand" />
+                                )}
+                            </div>
+
+                            {/* בועת ביקורת חכמה */}
+                            <div className="absolute top-6 left-6 z-20">
+                                <button 
+                                    onMouseEnter={() => setActiveReviewBubble(p.id)} 
+                                    onMouseLeave={() => setActiveReviewBubble(null)} 
+                                    className="w-10 h-10 rounded-full bg-blue-50/80 text-[#1e3a8a] flex items-center justify-center shadow-sm border border-blue-100 hover:scale-110 transition-transform"
+                                >
+                                    <i className="fa-solid fa-comment-dots text-lg"></i>
+                                </button>
+                                {activeReviewBubble === p.id && (
+                                    <div className="absolute top-12 left-0 w-56 bg-[#1e3a8a] text-white p-4 rounded-2xl shadow-2xl z-50 text-xs border-2 border-[#FFD814] animate-bounce-in">
+                                        <div className="text-[#FFD814] mb-2">★★★★★</div>
+                                        <p className="italic leading-tight">
+                                            {p.reviews?.[0]?.text || "מוצר מצוין! מומלץ מאוד על ידי צוות SmartBuy."}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* תמונת מוצר */}
+                            <div className="h-48 flex items-center justify-center mb-6 mt-6 cursor-pointer" onClick={() => setSelectedProduct(p)}>
+                                <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-700" alt={p.name} />
+                            </div>
+                            
+                            {/* פרטי מוצר ומחיר */}
+                            <h3 className="font-bold text-gray-800 text-sm mb-4 h-10 line-clamp-2 hover:text-[#1e3a8a] cursor-pointer" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex flex-col">
+                                    <span className="text-3xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
+                                    <span className="text-[10px] text-gray-400 line-through font-bold">₪{Math.round(p.sellingPrice * 1.15)}</span>
+                                </div>
+                                <div className="bg-green-50 text-green-600 text-[10px] font-black px-2 py-1 rounded-md">במלאי</div>
+                            </div>
+
+                            <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-2xl font-black hover:bg-[#f3ce12] transition-all shadow-lg active:scale-95">
+                                הוספה לסל המאובטח
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </section>
+        ))
+    ) : (
+        <div className="text-center py-40">
+            <i className="fa-solid fa-magnifying-glass text-6xl text-gray-200 mb-4"></i>
+            <p className="text-gray-400 font-bold">לא נמצאו מוצרים תחת החיפוש או המותג הזה.</p>
+        </div>
+    )}
+</main>
 
             {/* פוטר כחול מקצועי */}
             <footer className="bg-[#1e3a8a] text-white py-20 px-10 mt-20 border-t-8 border-[#FFD814]">
