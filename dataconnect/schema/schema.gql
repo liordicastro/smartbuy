@@ -1,0 +1,34 @@
+type Product @table {
+  name: String!
+  supplierSourceUrl: String!
+  costPrice: Float!
+  sellingPrice: Float!
+  stock: Int!
+  createdAt: Timestamp!
+  description: String
+  imageUrl: String
+  brand: String
+}
+
+type Customer @table {
+  name: String!
+  email: String!
+  shippingAddress: String!
+  createdAt: Timestamp!
+  phoneNumber: String
+}
+
+type Order @table {
+  customer: Customer
+  orderDate: Timestamp!
+  totalAmount: Float!
+  fulfillmentStatus: String!
+  notes: String
+}
+
+type OrderItem @table(key: ["order", "product"]) {
+  order: Order!
+  product: Product!
+  quantity: Int!
+  priceAtPurchase: Float!
+}

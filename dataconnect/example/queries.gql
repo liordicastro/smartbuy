@@ -1,0 +1,36 @@
+query ListProducts @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public as it only retrieves product information.") {
+  products {
+    id
+    name
+    description
+    price
+    imageUrl
+  }
+}
+
+query GetUserProfile @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users as it retrieves their own profile.") {
+  users(where: {id: {eq_expr: "auth.uid"}}) {
+    id
+    username
+    email
+    createdAt
+    avatarUrl
+    bio
+  }
+}
+
+mutation CreateOrder($productId: String!, $quantity: Int!) @auth(level: USER) {
+  orders_insert(data: {
+    userId_expr: "auth.uid",
+    productId: $productId,
+    quantity: $quantity,
+    orderDate_expr: "request.time"
+  })
+}
+
+mutation UpdateProductPrice($productId: String!, $newPrice: Float!) @auth(expr: "auth.token.admin == true") {
+  products_update(
+    key: {id: $productId},
+    data: {price: $newPrice}
+  )
+}

@@ -1,0 +1,31 @@
+mutation CreateSeedData @transaction @auth(level: USER, insecureReason: "Populating seed data is safe for any logged in user.") {
+  product_insertMany(data: [
+    {
+      id: "product-1",
+      name: "Smart LED Light Bulb",
+      description: "Control your lighting from anywhere with this smart LED bulb. Compatible with Alexa and Google Assistant.",
+      price: 19.99,
+      category: "Lighting",
+      stock: 150,
+      imageUrl: "https://example.com/images/smart-bulb.jpg"
+    },
+    {
+      id: "product-2",
+      name: "Wireless Charging Pad",
+      description: "Fast wireless charging for your compatible smartphone. Sleek design and compact size.",
+      price: 29.99,
+      category: "Accessories",
+      stock: 100,
+      imageUrl: "https://example.com/images/charging-pad.jpg"
+    },
+    {
+      id: "product-3",
+      name: "Smart Plug Mini",
+      description: "Turn any appliance into a smart device with this compact smart plug. Schedule on/off times and save energy.",
+      price: 14.99,
+      category: "Smart Home",
+      stock: 200,
+      imageUrl: "https://example.com/images/smart-plug.jpg"
+    }
+  ])
+}
