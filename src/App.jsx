@@ -19,17 +19,30 @@ const auth = getAuth(app);
 // --- רכיב החלפת שפות (מתוקן ושקט) ---
 const LanguageSwitcher = () => {
     const changeLanguage = (langCode) => {
-        const selectBox = document.querySelector(".goog-te-combo");
-        if (selectBox) {
-            selectBox.value = langCode;
-            selectBox.dispatchEvent(new Event('change'));
+        if (langCode === 'he') {
+            // אם חוזרים לעברית, מוחקים את העוגיות של גוגל
+            document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=.${window.location.hostname}; path=/;`;
+        } else {
+            // שותלים עוגייה שאומרת לגוגל לתרגם מעברית לשפה שנבחרה
+            document.cookie = `googtrans=/he/${langCode}; path=/`;
+            document.cookie = `googtrans=/he/${langCode}; domain=.${window.location.hostname}; path=/`;
         }
+        // רענון קל כדי שהסקריפט של גוגל יקרא את העוגייה מיד
+        window.location.reload();
     };
 
     return (
         <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner">
             {[ {c:'he', f:'🇮🇱'}, {c:'en', f:'🇺🇸'}, {c:'fr', f:'🇫🇷'}, {c:'ru', f:'🇷🇺'} ].map(l => (
-                <button key={l.c} onClick={() => changeLanguage(l.c)} className="text-xl hover:scale-125 transition-transform" title={l.c}>{l.f}</button>
+                <button 
+                    key={l.c} 
+                    onClick={() => changeLanguage(l.c)} 
+                    className="text-xl hover:scale-125 transition-transform" 
+                    title={l.c}
+                >
+                    {l.f}
+                </button>
             ))}
         </div>
     );
