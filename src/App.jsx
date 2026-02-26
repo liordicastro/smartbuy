@@ -50,25 +50,66 @@ const PromoPopup = ({ onClose }) => (
 
 // --- מודאל מוצר מורחב (מתוקן) ---
 const ProductModal = ({ product, onClose, onAddToCart }) => (
-    <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-        <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
-            <button onClick={onClose} className="absolute top-6 left-6 text-gray-400 hover:text-black text-3xl font-bold">&times;</button>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="flex items-center justify-center p-6 bg-gray-50 rounded-2xl">
-                    <img src={product.image} className="max-h-96 object-contain" alt={product.name} />
-                </div>
-                <div>
-                    <div className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">{product.category}</div>
-                    <h2 className="text-2xl font-extrabold text-[#1e3a8a] mb-4 leading-tight">{product.name}</h2>
-                    <p className="text-gray-600 mb-8 leading-relaxed text-sm">{product.description}</p>
-                    <div className="border-t border-gray-100 pt-6 mb-8">
-                        <div className="text-sm text-gray-500 mb-1">מחיר SmartBuy:</div>
-                        <div className="text-5xl font-black text-[#1e3a8a] mb-1">₪{product.sellingPrice}</div>
-                        <div className="text-xs text-gray-400 line-through">מחיר שוק: ₪{Math.round(product.sellingPrice * 1.15)}</div>
+    <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-y-auto p-0 relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-4 left-4 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-400 hover:text-black shadow-md text-3xl font-bold z-20">&times;</button>
+            
+            <div className="grid grid-cols-1 md:grid-cols-5 min-h-[60vh]">
+                {/* צד ימין: תמונה, קטגוריה וקנייה (2 עמודות) */}
+                <div className="md:col-span-2 p-8 bg-gray-50 flex flex-col items-center justify-center border-l border-gray-200">
+                    <div className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-widest bg-white px-3 py-1 rounded-full shadow-sm">{product.category}</div>
+                    <img src={product.image} className="max-h-64 object-contain mb-8 hover:scale-110 transition-transform duration-500" alt={product.name} />
+                    <h2 className="text-2xl font-extrabold text-[#1e3a8a] mb-6 text-center leading-tight">{product.name}</h2>
+                    
+                    <div className="w-full bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-auto">
+                        <div className="text-sm text-gray-500 mb-1 text-center font-bold">מחיר SmartBuy:</div>
+                        <div className="text-5xl font-black text-[#1e3a8a] mb-1 text-center">₪{product.sellingPrice}</div>
+                        <div className="text-xs text-gray-400 line-through text-center mb-6">מחיר שוק: ₪{Math.round(product.sellingPrice * 1.15)}</div>
+                        
+                        <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#1e3a8a] font-extrabold py-4 rounded-xl transition-all text-lg shadow-md active:scale-95">
+                            <i className="fa-solid fa-cart-plus ml-2 text-xl"></i> הוספה לסל
+                        </button>
                     </div>
-                    <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#1e3a8a] font-extrabold py-5 rounded-2xl transition-all text-lg shadow-md">
-                        <i className="fa-solid fa-cart-plus ml-2"></i> הוספה לסל
-                    </button>
+                </div>
+
+                {/* צד שמאל: סקירת מומחה (AI) וביקורות גולשים (3 עמודות) */}
+                <div className="md:col-span-3 p-8 bg-white overflow-y-auto">
+                    {/* אזור מאמר המומחה */}
+                    {product.expertArticleTitle ? (
+                        <div className="mb-10">
+                            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-4 py-2 rounded-lg font-black text-sm mb-6 border border-blue-100">
+                                <i className="fa-solid fa-medal text-[#FFD814] text-lg"></i> סקירת המומחים של SmartBuy
+                            </div>
+                            <h3 className="text-2xl sm:text-3xl font-black text-gray-900 mb-6 leading-tight">{product.expertArticleTitle}</h3>
+                            <div className="text-gray-600 leading-relaxed text-sm sm:text-base space-y-4">
+                                {/* הבוט מחזיר ירידות שורה, אז אנחנו מפצלים אותן לפסקאות יפות */}
+                                {product.expertArticleBody.split('\n').filter(p => p.trim() !== '').map((paragraph, idx) => (
+                                    <p key={idx}>{paragraph}</p>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="mb-10 text-gray-600 leading-relaxed text-sm sm:text-base">
+                            {product.description}
+                        </div>
+                    )}
+                    
+                    {/* אזור ביקורות לקוחות */}
+                    <div className="pt-8 border-t-2 border-dashed border-gray-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h4 className="font-black text-[#1e3a8a] text-xl">ביקורות גולשים</h4>
+                            <div className="text-[#FFD814] text-sm"><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i></div>
+                        </div>
+                        
+                        <div className="bg-gray-50 p-8 rounded-2xl text-center border border-gray-100 shadow-inner">
+                            <i className="fa-regular fa-comment-dots text-5xl text-gray-300 mb-4"></i>
+                            <h5 className="font-bold text-gray-700 mb-2">אין עדיין ביקורות למוצר זה</h5>
+                            <p className="text-sm text-gray-500 mb-6">קנית את המוצר? ספר לנו איך הוא ותעזור לאחרים להחליט!</p>
+                            <button className="bg-white border-2 border-[#1e3a8a] text-[#1e3a8a] px-8 py-3 rounded-xl font-bold hover:bg-[#1e3a8a] hover:text-white transition-all shadow-sm">
+                                <i className="fa-solid fa-pen-to-square ml-2"></i> כתוב ביקורת
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
