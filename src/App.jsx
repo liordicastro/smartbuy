@@ -87,17 +87,16 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 left-4 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-400 hover:text-black shadow-md text-3xl font-bold z-50">&times;</button>
                 
-                <div className="grid grid-cols-1 md:grid-cols-5 h-full overflow-y-auto md:overflow-hidden">
-                    {/* צד ימין: תמונה ומחיר */}
-                    <div className="md:col-span-2 p-8 bg-gray-50 flex flex-col items-center justify-center border-l border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-5 h-full overflow-hidden">
+                    {/* צד ימין: תמונה ומחיר (נשאר קבוע) */}
+                    <div className="md:col-span-2 p-8 bg-gray-50 flex flex-col items-center justify-center border-l border-gray-200 overflow-y-auto">
                         <div className="text-xs font-bold text-gray-400 mb-4 uppercase bg-white px-3 py-1 rounded-full shadow-sm">{product.category}</div>
-                        <img src={product.image} className="max-h-64 object-contain mb-6 hover:scale-105 transition-transform duration-500" alt={product.name} />
+                        <img src={product.image} className="max-h-64 object-contain mb-6 transition-transform duration-500 hover:scale-105" alt={product.name} />
                         <h2 className="text-2xl font-black text-[#1e3a8a] mb-6 text-center leading-tight">{product.name}</h2>
                         <div className="w-full bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-auto">
-                            <div className="text-sm text-gray-500 mb-1 text-center font-bold">מחיר SmartBuy:</div>
                             <div className="text-5xl font-black text-[#1e3a8a] mb-2 text-center">₪{product.sellingPrice}</div>
                             <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] text-[#1e3a8a] font-black py-4 rounded-xl text-lg shadow-md active:scale-95 transition-all">
                                 הוספה לסל <i className="fa-solid fa-cart-plus mr-2"></i>
@@ -105,59 +104,95 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview }) => {
                         </div>
                     </div>
 
-                    {/* צד שמאל: סקירה (עם גלילה) וביקורות */}
-                    <div className="md:col-span-3 p-8 bg-white flex flex-col h-full overflow-y-auto">
+                    {/* צד שמאל: אזור גלילה הכולל סקירה, מפרט וביקורות */}
+                    <div className="md:col-span-3 p-8 bg-white overflow-y-auto custom-scrollbar">
+                        {/* 1. סקירת מומחה */}
                         {product.expertArticleTitle && (
-                            <div className="mb-6">
+                            <section className="mb-10">
                                 <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-3 py-1.5 rounded-lg font-black text-xs mb-3 border border-blue-100">
-                                    <i className="fa-solid fa-medal text-[#FFD814]"></i> סקירת המומחים
+                                    <i className="fa-solid fa-medal text-[#FFD814]"></i> סקירת מומחי SmartBuy
                                 </div>
                                 <h3 className="text-2xl font-black text-gray-900 mb-4">{product.expertArticleTitle}</h3>
-                                {/* תיבת גלילה לסקירה - לא דוחפת את השאר למטה */}
-                                <div className="max-h-60 overflow-y-auto pr-2 text-gray-600 leading-relaxed text-sm space-y-4 border-r-2 border-gray-100">
+                                <div className="text-gray-600 leading-relaxed text-sm space-y-4">
                                     {product.expertArticleBody.split('\n').filter(p => p.trim() !== '').map((paragraph, idx) => (
                                         <p key={idx}>{paragraph}</p>
                                     ))}
                                 </div>
-                            </div>
+                            </section>
+                        )}
+
+                        {/* 2. מפרט טכני (מהבוט החדש) */}
+                        {product.specs && (
+                            <section className="mb-10 bg-gray-50 rounded-2xl p-6 border border-gray-100 shadow-inner">
+                                <h4 className="font-black text-[#1e3a8a] mb-6 flex items-center gap-2 text-lg">
+                                    <i className="fa-solid fa-microchip text-[#FFD814]"></i> מפרט טכני מלא
+                                </h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                        <span className="text-gray-400 block text-[10px] font-bold uppercase mb-1">מידות (גxרxע)</span>
+                                        <span className="font-bold text-gray-800">{product.specs.dimensions || 'לפי יצרן'}</span>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                        <span className="text-gray-400 block text-[10px] font-bold uppercase mb-1">צבע / גימור</span>
+                                        <span className="font-bold text-gray-800">{product.specs.color || 'סטנדרט'}</span>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 col-span-full">
+                                        <span className="text-gray-400 block text-[10px] font-bold uppercase mb-2">תכונות בולטות</span>
+                                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {product.specs.key_features?.map((f, i) => (
+                                                <li key={i} className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                                                    <i className="fa-solid fa-check text-green-500 text-[10px]"></i> {f}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </section>
                         )}
                         
-                        <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-100">
-                            <h4 className="font-black text-[#1e3a8a] text-xl mb-6">ביקורות לקוחות</h4>
+                        {/* 3. אזור ביקורות לקוחות */}
+                        <section className="pt-8 border-t-2 border-dashed border-gray-100">
+                            <h4 className="font-black text-[#1e3a8a] text-xl mb-6">מה הלקוחות אומרים?</h4>
                             
-                            {/* הצגת ביקורות קיימות */}
                             <div className="space-y-4 mb-8">
-                                {product.reviews?.map((rev, i) => (
-                                    <div key={i} className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                                        <div className="flex justify-between font-bold text-xs text-[#1e3a8a] mb-1">
-                                            <span>{rev.name}</span>
-                                            <span className="text-[#FFD814]">★ {rev.rating}</span>
+                                {product.reviews && product.reviews.length > 0 ? (
+                                    product.reviews.map((rev, i) => (
+                                        <div key={i} className="bg-gray-50 p-5 rounded-2xl border border-gray-100 relative">
+                                            <div className="flex justify-between font-bold text-xs text-[#1e3a8a] mb-2">
+                                                <span>{rev.name}</span>
+                                                <div className="text-[#FFD814]">
+                                                    {[...Array(rev.rating)].map((_, star) => <i key={star} className="fa-solid fa-star"></i>)}
+                                                </div>
+                                            </div>
+                                            <p className="text-gray-600 text-sm italic leading-relaxed">"{rev.text}"</p>
                                         </div>
-                                        <p className="text-gray-600 text-xs italic">"{rev.text}"</p>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        <p className="text-gray-400 text-sm font-bold">עוד לא נכתבו ביקורות. תהיה הראשון?</p>
                                     </div>
-                                ))}
+                                )}
                             </div>
 
                             {/* טופס כתיבת ביקורת */}
-                            <form onSubmit={handleReviewSubmit} className="bg-blue-50 p-6 rounded-2xl border-2 border-dashed border-blue-200">
-                                <h5 className="font-bold text-sm mb-4 text-[#1e3a8a]">הוסף ביקורת משלך:</h5>
+                            <form onSubmit={handleReviewSubmit} className="bg-blue-50 p-6 rounded-2xl border-2 border-dashed border-blue-100">
+                                <h5 className="font-bold text-[#1e3a8a] mb-4">הוסף חוות דעת:</h5>
                                 <div className="grid grid-cols-2 gap-3 mb-3">
-                                    <input required placeholder="שם מלא" className="p-3 rounded-xl border text-sm" value={reviewForm.name} onChange={e=>setReviewForm({...reviewForm, name: e.target.value})} />
-                                    <select className="p-3 rounded-xl border text-sm" value={reviewForm.rating} onChange={e=>setReviewForm({...reviewForm, rating: Number(e.target.value)})}>
+                                    <input required placeholder="שם מלא" className="p-3 rounded-xl border text-sm focus:ring-2 ring-blue-200 outline-none" value={reviewForm.name} onChange={e=>setReviewForm({...reviewForm, name: e.target.value})} />
+                                    <select className="p-3 rounded-xl border text-sm focus:ring-2 ring-blue-200 outline-none" value={reviewForm.rating} onChange={e=>setReviewForm({...reviewForm, rating: Number(e.target.value)})}>
                                         {[5,4,3,2,1].map(n => <option key={n} value={n}>{n} כוכבים</option>)}
                                     </select>
                                 </div>
-                                <textarea required placeholder="מה דעתך על המוצר?" className="w-full p-3 rounded-xl border text-sm mb-3" rows="2" value={reviewForm.text} onChange={e=>setReviewForm({...reviewForm, text: e.target.value})}></textarea>
-                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-bold text-sm shadow-md">שלח ביקורת</button>
+                                <textarea required placeholder="איך המוצר? (איכות, מהירות משלוח, שירות...)" className="w-full p-3 rounded-xl border text-sm mb-3 focus:ring-2 ring-blue-200 outline-none" rows="3" value={reviewForm.text} onChange={e=>setReviewForm({...reviewForm, text: e.target.value})}></textarea>
+                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-black text-sm shadow-md hover:bg-[#152a63] transition-all">פרסם ביקורת</button>
                             </form>
-                        </div>
+                        </section>
                     </div>
                 </div>
             </div>
         </div>
     );
 };
-
 // --- מודאל קופה ---
 const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
     const [formData, setFormData] = useState({ name: '', phone: '' });
