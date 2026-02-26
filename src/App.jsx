@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signInWithPhoneNumber, RecaptchaVerifier, signOut } from "firebase/auth";
-
+import { getFirestore, collection, onSnapshot, doc, updateDoc, arrayUnion, addDoc, serverTimestamp } from "firebase/firestore";
+import { getAuth, signInWithPopup, GoogleAuthProvider, OAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 // --- הגדרות Firebase ---
 const firebaseConfig = {
     apiKey: "AIzaSyCndeeXqbALJ93XChyAybvN1PWtbqNZJ4M",
@@ -260,6 +259,17 @@ export default function App() {
         return () => unsub();
     }, []);
 
+const handleAddReview = async (productId, reviewData) => {
+    const productRef = doc(db, "products", productId);
+    try {
+        await updateDoc(productRef, {
+            reviews: arrayUnion({ ...reviewData, date: new Date().toISOString() })
+        });
+        alert("תודה! הביקורת שלך נוספה בהצלחה.");
+    } catch (e) { console.error("שגיאה בשמירת הביקורת:", e); }
+};
+
+
     // סינון מוצרים
     const filtered = products.filter(p => {
         const matchCat = filter === "All" || p.category === filter;
@@ -381,13 +391,19 @@ export default function App() {
             <nav className="bg-white shadow-md sticky top-[158px] md:top-[92px] z-40 overflow-x-auto hide-scroll px-6 py-3 border-b border-gray-200">
                 <div className="max-w-7xl mx-auto flex gap-4 md:justify-center min-w-max">
                     {Object.keys(categoryMap).map(cat => (
-                        <button key={cat} onClick={() => { setFilter(cat); setMaxPrice(15000); }} className={`flex flex-col items-center min-w-[70px] p-2 rounded-2xl transition-all border-2 ${filter === cat ? "border-[#1e3a8a] bg-blue-50 shadow-inner scale-105" : "border-transparent hover:bg-gray-100"}`}>
-                            <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-sm mb-1 p-1 overflow-hidden">
-                                <img src={getCategoryImage(cat)} alt={categoryMap[cat]} className="w-full h-full object-contain" />
-                            </div>
-                            <span className={`text-[10px] font-bold ${filter === cat ? "text-[#1e3a8a]" : "text-gray-600"}`}>{categoryMap[cat]}</span>
-                        </button>
-                    ))}
+    <button 
+        key={cat} 
+        onClick={() => setFilter(cat)} 
+        className={`flex flex-col items-center min-w-[110px] p-4 rounded-2xl transition-all border-2 shadow-sm ${filter === cat ? "border-[#1e3a8a] bg-blue-50 scale-105" : "border-transparent bg-white hover:bg-gray-100"}`}
+    >
+        <div className="w-14 h-14 flex items-center justify-center bg-gray-50 rounded-full mb-2 p-2 shadow-inner">
+            <img src={getCategoryImage(cat)} alt={categoryMap[cat]} className="w-full h-full object-contain" />
+        </div>
+        <span className={`text-sm font-black ${filter === cat ? "text-[#1e3a8a]" : "text-gray-700"}`}>
+            {categoryMap[cat]}
+        </span>
+    </button>
+))}
                 </div>
             </nav>
 
@@ -403,17 +419,23 @@ export default function App() {
                             </div>
                         )}
 
-                        <div className="absolute top-4 left-4 z-20">
-                            <button onClick={(e) => { e.stopPropagation(); setActiveReview(activeReview === p.id ? null : p.id); }} className="w-8 h-8 rounded-full shadow-md flex items-center justify-center bg-white text-[#1e3a8a] hover:bg-gray-100">
-                                <i className="fa-regular fa-comment-dots"></i>
-                            </button>
-                            {activeReview === p.id && (
-                                <div className="absolute top-10 left-0 bg-white p-3 rounded-xl shadow-2xl z-30 w-48 border-2 border-[#FFD814] text-right text-xs">
-                                    <div className="text-[#FFD814] mb-1"><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i></div>
-                                    <p className="text-gray-600">סורק ביקורות פעיל...</p>
-                                </div>
-                            )}
-                        </div>
+                       div className="absolute top-4 left-4 z-20">
+    <button 
+        onMouseEnter={() => setActiveReviewBubble(p.id)} 
+        onMouseLeave={() => setActiveReviewBubble(null)} 
+        className="w-10 h-10 rounded-full bg-white/90 text-[#1e3a8a] flex items-center justify-center shadow-lg border border-blue-100 hover:scale-110 transition-transform"
+    >
+        <i className="fa-solid fa-comment-dots text-lg"></i>
+    </button>
+    {activeReviewBubble === p.id && (
+        <div className="absolute top-12 left-0 w-56 bg-[#1e3a8a] text-white p-4 rounded-2xl shadow-2xl z-50 text-xs border-2 border-[#FFD814] animate-bounce-in">
+            <div className="text-[#FFD814] mb-2 font-bold">★★★★★</div>
+            <p className="leading-tight italic font-medium">
+                {p.reviews && p.reviews.length > 0 ? p.reviews[0].text : "עוד לא כתבו ביקורת - תהיה הראשון?"}
+            </p>
+        </div>
+    )}
+</div>
                         
                         <div className="relative h-48 flex items-center justify-center mb-4 mt-6 cursor-pointer" onClick={() => setSelectedProduct(p)}>
                             <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={p.name}/>
@@ -462,44 +484,93 @@ export default function App() {
                         </div>
                     </div>
                 </div>
+            <footer className="bg-[#1e3a8a] text-white py-16 px-8 mt-20 border-t-8 border-[#FFD814]">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-sm">
+                    <div>
+                        <div className="text-3xl font-black italic text-[#FFD814] mb-4">SMARTBUY</div>
+                        <p className="leading-relaxed font-bold opacity-80">החנות המובילה למכשירי חשמל. איכות ללא פשרות, שירות VIP ומחירים שוברי שוק.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-black text-lg mb-6 border-b-2 border-[#FFD814] pb-2 inline-block text-[#FFD814]">שירות לקוחות</h4>
+                        <ul className="space-y-3 font-bold">
+                            <li><i className="fa-solid fa-phone ml-2 text-[#FFD814]"></i> מוקד הזמנות: 054-4914204</li>
+                            <li><i className="fa-solid fa-clock ml-2 text-[#FFD814]"></i> א-ה: 09:00-19:00</li>
+                            <li><i className="fa-solid fa-envelope ml-2 text-[#FFD814]"></i> info@smartbuy.co.il</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 className="font-black text-lg mb-6 border-b-2 border-[#FFD814] pb-2 inline-block text-[#FFD814]">מידע שימושי</h4>
+                        <ul className="space-y-3 font-bold text-gray-200">
+                            <li><a href="#" className="hover:text-[#FFD814]">תקנון האתר ומדיניות משלוחים</a></li>
+                            <li><a href="#" className="hover:text-[#FFD814]">מדיניות פרטיות והחזרות</a></li>
+                            <li className="text-[#FFD814]"><i className="fa-solid fa-tag ml-1"></i> מחלקת עודפים (בקרוב)</li>
+                        </ul>
+                    </div>
+                    <div className="text-center md:text-right">
+                        <h4 className="font-black text-lg mb-6 border-b-2 border-[#FFD814] pb-2 inline-block text-[#FFD814]">קנייה מאובטחת</h4>
+                        <div className="flex gap-4 justify-center md:justify-start text-5xl mb-4 text-white">
+                            <i className="fa-brands fa-google-pay" title="Google Pay"></i>
+                            <i className="fa-brands fa-apple-pay" title="Apple Pay"></i>
+                            <i className="fa-brands fa-cc-visa"></i>
+                            <i className="fa-brands fa-cc-mastercard"></i>
+                        </div>
+                        <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">PCI-DSS COMPLIANT SECURITY</p>
+                    </div>
+                </div>
             </footer>
 
-            {/* מגירת סל עשירה (כולל קופון) */}
-            <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-[400] transition-transform duration-500 border-l-4 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            {/* מגירת סל עשירה ומשודרגת (כולל קופון) */}
+            <div className={`fixed top-0 right-0 h-full w-80 md:w-96 bg-white shadow-2xl z-[400] transition-transform duration-500 border-l-8 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="p-6 bg-[#1e3a8a] text-white flex justify-between items-center shadow-lg">
-                    <span className="font-black text-xl text-[#FFD814]">הסל שלי</span>
-                    <button onClick={()=>setIsCartOpen(false)} className="text-3xl">&times;</button>
+                    <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-cart-shopping text-[#FFD814]"></i>
+                        <span className="font-black text-2xl text-[#FFD814]">הסל שלי</span>
+                    </div>
+                    <button onClick={()=>setIsCartOpen(false)} className="text-4xl hover:text-[#FFD814] transition-colors">&times;</button>
                 </div>
                 
-                <div className="p-4 overflow-y-auto h-[55vh] space-y-4">
-                    {cart.map((item, i) => (
-                        <div key={i} className="flex gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200 relative">
-                            <button onClick={() => removeFromCart(i)} className="absolute top-1 right-1 bg-red-100 text-red-500 hover:bg-red-500 hover:text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10">
-                                <i className="fa-solid fa-trash text-xs"></i>
-                            </button>
-                            <img src={item.image} className="w-16 h-16 object-contain bg-white rounded-lg p-1 shadow-sm mr-4" />
-                            <div className="flex flex-col justify-center">
-                                <span className="text-[11px] font-bold line-clamp-2 leading-tight pr-2">{item.name}</span>
-                                <b className="text-[#1e3a8a] pr-2">₪{item.sellingPrice}</b>
-                            </div>
+                <div className="p-4 overflow-y-auto h-[55vh] space-y-4 bg-gray-50">
+                    {cart.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400">
+                            <i className="fa-solid fa-basket-shopping text-6xl mb-4 opacity-20"></i>
+                            <p className="font-bold">הסל שלך מחכה להתמלא...</p>
                         </div>
-                    ))}
+                    ) : (
+                        cart.map((item, i) => (
+                            <div key={i} className="flex gap-4 bg-white p-3 rounded-2xl border-2 border-gray-100 relative shadow-sm hover:border-[#1e3a8a] transition-all">
+                                <button onClick={() => removeFromCart(i)} className="absolute -top-2 -right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-10">
+                                    <i className="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                                <img src={item.image} className="w-20 h-20 object-contain bg-white rounded-xl p-1 shadow-inner" alt={item.name} />
+                                <div className="flex flex-col justify-center flex-1">
+                                    <span className="text-xs font-black text-gray-800 line-clamp-2 leading-tight mb-1">{item.name}</span>
+                                    <b className="text-[#1e3a8a] text-lg font-black">₪{item.sellingPrice}</b>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
 
-                <div className="p-6 border-t bg-white absolute bottom-0 w-full shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                <div className="p-6 border-t-4 border-gray-100 bg-white absolute bottom-0 w-full shadow-[0_-15px_30px_rgba(0,0,0,0.1)]">
                     {/* אזור קופון */}
-                    <div className="flex gap-2 mb-4">
-                        <input type="text" placeholder="קוד קופון" value={couponCode} onChange={e=>setCouponCode(e.target.value)} className="w-full border p-2 rounded-lg text-sm" />
-                        <button onClick={applyCoupon} className="bg-[#1e3a8a] text-white px-3 rounded-lg text-sm font-bold">הפעל</button>
+                    <div className="flex gap-2 mb-6">
+                        <input type="text" placeholder="קוד קופון (SMART10)" value={couponCode} onChange={e=>setCouponCode(e.target.value)} className="w-full border-2 border-gray-100 p-3 rounded-xl text-sm focus:border-[#1e3a8a] outline-none" />
+                        <button onClick={applyCoupon} className="bg-[#1e3a8a] text-white px-5 rounded-xl text-sm font-black hover:bg-blue-800 transition-colors">הפעל</button>
                     </div>
                     
-                    {discount > 0 && <div className="text-green-600 text-sm font-bold mb-2">הנחה פעילה: 10%</div>}
+                    {discount > 0 && <div className="bg-green-100 text-green-700 text-xs font-black p-2 rounded-lg mb-4 text-center">🎉 קופון הופעל בהצלחה! (10% הנחה)</div>}
                     
-                    <div className="flex justify-between items-center mb-4">
-                        <span className="font-bold">סה"כ לתשלום:</span>
-                        <span className="text-3xl font-black text-[#1e3a8a]">₪{cartTotal}</span>
+                    <div className="flex justify-between items-center mb-6 px-2">
+                        <span className="font-black text-gray-500 uppercase tracking-widest text-xs">סה"כ לתשלום</span>
+                        <span className="text-4xl font-black text-[#1e3a8a]">₪{cartTotal}</span>
                     </div>
-                    <button onClick={()=>{ setIsCartOpen(false); setIsCheckoutOpen(true); }} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-xl">המשך לקופה</button>
+                    
+                    <button 
+                        onClick={()=>{ setIsCartOpen(false); setIsCheckoutOpen(true); }} 
+                        className="w-full bg-[#FFD814] text-[#1e3a8a] py-5 rounded-2xl font-black text-xl hover:scale-[1.02] transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95"
+                    >
+                        המשך לקופה מאובטחת <i className="fa-solid fa-shield-check text-sm"></i>
+                    </button>
                 </div>
             </div>
             {isCartOpen && <div className="fixed inset-0 bg-black/50 z-[350] backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>}
