@@ -20,11 +20,23 @@ const auth = getAuth(app);
 const LanguageSwitcher = () => {
     
     useEffect(() => {
-        // טוען את מנוע התרגום של גוגל ברקע ברגע שהאתר עולה
+        // 1. מסתירים את הפס המכוער של גוגל למעלה
+        if (!document.getElementById('google-translate-styles')) {
+            const style = document.createElement('style');
+            style.id = 'google-translate-styles';
+            style.innerHTML = `
+                .goog-te-banner-frame.skiptranslate { display: none !important; }
+                body { top: 0px !important; }
+                #google_translate_element { display: none !important; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 2. טוענים את המנוע של גוגל
         if (!document.getElementById('google-translate-script')) {
             window.googleTranslateElementInit = () => {
                 new window.google.translate.TranslateElement(
-                    { pageLanguage: 'he', autoDisplay: false },
+                    { pageLanguage: 'he', includedLanguages: 'he,en,fr,ru', autoDisplay: false },
                     'google_translate_element'
                 );
             };
@@ -37,21 +49,19 @@ const LanguageSwitcher = () => {
     }, []);
 
     const changeLanguage = (langCode) => {
-        if (langCode === 'he') {
-            document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=.${window.location.hostname}; path=/;`;
+        // מוצאים את התפריט הנסתר של גוגל ומשנים אותו אוטומטית (בלי לרענן!)
+        const selectField = document.querySelector(".goog-te-combo");
+        if (selectField) {
+            selectField.value = langCode;
+            selectField.dispatchEvent(new Event("change"));
         } else {
-            document.cookie = `googtrans=/he/${langCode}; path=/`;
-            document.cookie = `googtrans=/he/${langCode}; domain=.${window.location.hostname}; path=/`;
+            alert("מערכת התרגום נחסמה על ידי חוסם הפרסומות/הפרטיות בדפדפן שלך. ללקוח רגיל זה יעבוד.");
         }
-        window.location.reload();
     };
 
     return (
-        <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner">
-            {/* אלמנט נסתר שגוגל חייב שיהיה קיים כדי לאתחל את עצמו */}
-            <div id="google_translate_element" className="hidden"></div>
-            
+        <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner relative">
+            <div id="google_translate_element"></div>
             {[ {c:'he', f:'🇮🇱'}, {c:'en', f:'🇺🇸'}, {c:'fr', f:'🇫🇷'}, {c:'ru', f:'🇷🇺'} ].map(l => (
                 <button 
                     key={l.c} 
@@ -65,7 +75,6 @@ const LanguageSwitcher = () => {
         </div>
     );
 };
-// --- פופ-אפ חגיגת מחירים ---
 const PromoPopup = ({ onClose }) => (
     <div className="fixed inset-0 bg-black/70 z-[600] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
         <div className="bg-gradient-to-br from-[#1e3a8a] to-[#0f172a] rounded-3xl max-w-md w-full p-8 relative shadow-[0_0_40px_rgba(255,216,20,0.4)] text-center border-4 border-[#FFD814]" onClick={e => e.stopPropagation()}>
