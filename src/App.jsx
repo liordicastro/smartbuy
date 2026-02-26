@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signInWithPhoneNumber, RecaptchaVerifier, signOut } from "firebase/auth";
 
 // הגדרות Firebase
 const firebaseConfig = {
@@ -16,7 +16,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// --- רכיב החלפת שפות (מתוקן) ---
+// --- רכיב החלפת שפות ---
 const LanguageSwitcher = () => {
     const changeLanguage = (langCode) => {
         const selectBox = document.querySelector(".goog-te-combo");
@@ -24,7 +24,7 @@ const LanguageSwitcher = () => {
             selectBox.value = langCode;
             selectBox.dispatchEvent(new Event('change'));
         } else {
-            alert("מערכת התרגום נטענת, אנא המתן שניה ונסה שוב.");
+            alert("מערכת התרגום נטענת ברקע, אנא המתן שניה ונסה שוב (ודא שאין חוסם פרסומות).");
         }
     };
 
@@ -37,89 +37,97 @@ const LanguageSwitcher = () => {
     );
 };
 
-// --- רכיב סליידר Hero (תמונות מתחלפות) ---
+// --- פופ-אפ חגיגת מחירים ---
+const PromoPopup = ({ onClose }) => (
+    <div className="fixed inset-0 bg-black/70 z-[600] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-gradient-to-br from-[#1e3a8a] to-[#0f172a] rounded-3xl max-w-md w-full p-8 relative shadow-[0_0_40px_rgba(255,216,20,0.4)] text-center border-4 border-[#FFD814]" onClick={e => e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-4 left-4 text-white hover:text-[#FFD814] text-3xl font-bold">&times;</button>
+            <div className="text-7xl mb-4 animate-bounce">🎉</div>
+            <h2 className="text-4xl font-black text-[#FFD814] mb-3 drop-shadow-lg">חגיגת מחירים!</h2>
+            <p className="text-white text-lg mb-8 font-bold">מגוון מוצרים במחירי רצפה.<br/>המשלוח לכל הארץ עלינו!</p>
+            <button onClick={onClose} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-2xl font-black text-xl hover:scale-105 transition-transform shadow-lg">מעולה, בואו נתחיל</button>
+        </div>
+    </div>
+);
+
+// --- מודאל התחברות (מועדון) ---
+const AuthModal = ({ onClose }) => {
+    const [phone, setPhone] = useState("");
+    const [code, setCode] = useState("");
+    const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!window.recaptchaVerifier) window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
+    }, []);
+
+    const handleGoogleLogin = async () => {
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); onClose(); } catch (err) { setError("שגיאה בהתחברות."); }
+    };
+
+    const sendSms = async () => {
+        setLoading(true); setError("");
+        try {
+            const phoneE164 = phone.startsWith("0") ? "+972" + phone.slice(1) : phone;
+            window.confirmationResult = await signInWithPhoneNumber(auth, phoneE164, window.recaptchaVerifier);
+            setStep(2);
+        } catch (err) { setError("שגיאה בשליחת הסמס."); }
+        setLoading(false);
+    };
+
+    const verifyCode = async () => {
+        setLoading(true); setError("");
+        try { await window.confirmationResult.confirm(code); onClose(); } catch (err) { setError("קוד שגוי."); }
+        setLoading(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-3xl max-w-sm w-full p-8 relative shadow-2xl text-center border-2 border-[#D4AF37]" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 left-4 text-gray-400 hover:text-black text-2xl font-bold">&times;</button>
+                <div className="text-4xl text-[#D4AF37] mb-4"><i className="fa-solid fa-crown"></i></div>
+                <h2 className="text-2xl font-black text-[#1e3a8a] mb-2">מועדון SmartBuy</h2>
+                {error && <div className="bg-red-100 text-red-600 p-2 rounded-lg text-xs mb-4 font-bold">{error}</div>}
+                {step === 1 ? (
+                    <div>
+                        <button onClick={handleGoogleLogin} className="w-full bg-white border-2 border-gray-200 text-[#1e3a8a] font-bold py-3 rounded-xl flex items-center justify-center gap-3 mb-4">
+                            <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" className="w-5 h-5" /> המשך עם Google
+                        </button>
+                        <input type="tel" dir="ltr" placeholder="050-0000000" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-center font-bold" value={phone} onChange={e => setPhone(e.target.value)} />
+                        <button onClick={sendSms} disabled={loading || phone.length < 9} className="w-full bg-[#1e3a8a] text-white font-bold py-3 rounded-xl">{loading ? "שולח..." : "שלח קוד ב-SMS"}</button>
+                    </div>
+                ) : (
+                    <div>
+                        <input type="text" dir="ltr" placeholder="123456" maxLength="6" className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-center tracking-[1em]" value={code} onChange={e => setCode(e.target.value)} />
+                        <button onClick={verifyCode} disabled={loading || code.length < 6} className="w-full bg-[#FFD814] text-[#1e3a8a] font-extrabold py-3 rounded-xl">{loading ? "בודק..." : "אמת והתחבר"}</button>
+                    </div>
+                )}
+                <div id="recaptcha-container"></div>
+            </div>
+        </div>
+    );
+};
+
+// --- סליידר Hero (זום מיקרו) ---
 const HeroSlider = ({ products }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    
     useEffect(() => {
         if (products.length === 0) return;
-        const interval = setInterval(() => {
-            setCurrentIndex(prev => (prev + 1) % products.length);
-        }, 3000); // מתחלף כל 3 שניות
+        const interval = setInterval(() => setCurrentIndex(prev => (prev + 1) % products.length), 3500);
         return () => clearInterval(interval);
     }, [products]);
 
     if (products.length === 0) return null;
 
     return (
-        <div className="w-full h-24 md:h-32 bg-[#1e3a8a] relative overflow-hidden flex items-center justify-center border-b-4 border-[#FFD814]">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a8a] via-transparent to-[#1e3a8a] z-10 pointer-events-none"></div>
-            <img src={products[currentIndex].image} className="h-full object-contain opacity-40 mix-blend-screen transition-all duration-1000" alt="Slider" />
+        <div className="w-full h-32 md:h-48 bg-black relative overflow-hidden flex items-center justify-center border-b-4 border-[#FFD814]">
+            {/* תמונה עם זום מיקרו שמכסה את כל הרוחב */}
+            <img src={products[currentIndex].image} className="absolute inset-0 w-full h-full object-cover scale-150 opacity-40 transition-all duration-1000" alt="Slider" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a8a]/80 to-transparent"></div>
             <div className="absolute z-20 text-center">
-                <h2 className="text-[#FFD814] text-xl md:text-3xl font-black drop-shadow-md">{products[currentIndex].name}</h2>
-                <p className="text-white text-xs md:text-sm">משלוח מהיר בפריסה ארצית</p>
-            </div>
-        </div>
-    );
-};
-
-// --- מודאל מוצר מורחב ---
-const ProductModal = ({ product, onClose, onAddToCart }) => (
-    <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-        <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 relative shadow-2xl" onClick={e => e.stopPropagation()}>
-            <button onClick={onClose} className="absolute top-6 left-6 text-gray-400 hover:text-black text-2xl font-bold">&times;</button>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="flex items-center justify-center p-6 bg-gray-50 rounded-2xl">
-                    <img src={product.image} className="max-h-96 object-contain" alt={product.name} />
-                </div>
-                <div>
-                    <div className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">{product.category}</div>
-                    <h2 className="text-2xl font-extrabold text-[#1e3a8a] mb-4 leading-tight">{product.name}</h2>
-                    <p className="text-gray-600 mb-8 leading-relaxed text-sm">{product.description}</p>
-                    <div className="border-t border-gray-100 pt-6 mb-8">
-                        <div className="text-sm text-gray-500 mb-1">מחיר SmartBuy:</div>
-                        <div className="text-5xl font-black text-[#1e3a8a] mb-1">₪{product.sellingPrice}</div>
-                        <div className="text-xs text-gray-400 line-through">מחיר שוק: ₪{Math.round(product.sellingPrice * 1.15)}</div>
-                    </div>
-                    <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#1e3a8a] font-extrabold py-5 rounded-2xl transition-all text-lg shadow-md">
-                        <i className="fa-solid fa-cart-plus ml-2"></i> הוספה לסל
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-);
-
-// --- מודאל קופה ---
-const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
-    const [formData, setFormData] = useState({ name: '', phone: '', city: '', address: '' });
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        await addDoc(collection(db, "orders"), { customer: formData, items: cart, totalAmount: total, status: 'חדש', createdAt: serverTimestamp() });
-        let waText = `*הזמנה חדשה מ-SmartBuy!*%0A👤 שם: ${formData.name}%0A💰 סה"כ: ₪${total}`;
-        onClearCart(); onClose();
-        window.open(`https://wa.me/972544914204?text=${waText}`, '_blank');
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-8 relative shadow-2xl border-2 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 left-4 text-2xl font-bold">&times;</button>
-                <div className="md:w-1/2 p-4 border-l border-gray-100">
-                    <h3 className="text-xl font-black mb-4 text-[#1e3a8a]">סיכום הזמנה</h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto mb-4">
-                        {cart.map((item, i) => <div key={i} className="flex justify-between text-xs"><span>{item.name}</span><span className="font-bold">₪{item.sellingPrice}</span></div>)}
-                    </div>
-                    <div className="text-2xl font-black text-red-600 border-t pt-2">סה"כ: ₪{total}</div>
-                </div>
-                <div className="md:w-1/2 p-4">
-                    <h2 className="text-xl font-bold mb-4 text-[#1e3a8a]">פרטי משלוח</h2>
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                        <input required placeholder="שם מלא" className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200" onChange={e=>setFormData({...formData, name: e.target.value})} />
-                        <input required placeholder="טלפון" className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200" onChange={e=>setFormData({...formData, phone: e.target.value})} />
-                        <button type="submit" className="w-full bg-[#1e3a8a] text-white py-4 rounded-xl font-bold hover:bg-[#152a63] transition-colors shadow-lg">סיום והזמנה בווטסאפ</button>
-                    </form>
-                </div>
+                <h2 className="text-[#FFD814] text-2xl md:text-4xl font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{products[currentIndex].name}</h2>
+                <p className="text-white font-bold text-sm md:text-lg drop-shadow-md mt-1">המבצעים החמים של היום</p>
             </div>
         </div>
     );
@@ -133,7 +141,9 @@ export default function App() {
     const [cart, setCart] = useState([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [isAuthOpen, setIsAuthOpen] = useState(false);
+    const [showPromo, setShowPromo] = useState(true); // פופ-אפ ראשי
+    const [activeReview, setActiveReview] = useState(null); // בועת ביקורות
     const [user, setUser] = useState(null);
 
     useEffect(() => {
@@ -143,27 +153,19 @@ export default function App() {
     }, []);
 
     const addToCart = (p) => { setCart([...cart, p]); setIsCartOpen(true); };
-    const filtered = products.filter(p => (filter === "All" || p.category === filter) && p.name.includes(searchQuery) && p.sellingPrice <= maxPrice);
+    const removeFromCart = (index) => setCart(cart.filter((_, i) => i !== index));
     const cartTotal = cart.reduce((sum, i) => sum + i.sellingPrice, 0);
+    
+    const filtered = products.filter(p => (filter === "All" || p.category === filter) && p.name.includes(searchQuery) && p.sellingPrice <= maxPrice);
 
-    // מציאת מוצרים מומלצים (2 ראשונים מכל קטגוריה)
+    // מוצרים מומלצים
     const recommendedIds = useMemo(() => {
         const map = {};
-        products.forEach(p => {
-            if (!map[p.category]) map[p.category] = [];
-            if (map[p.category].length < 2) map[p.category].push(p.id);
-        });
+        products.forEach(p => { if (!map[p.category]) map[p.category] = []; if (map[p.category].length < 2) map[p.category].push(p.id); });
         return new Set(Object.values(map).flat());
     }, [products]);
 
-    // מפת הקטגוריות המלאה
-    const categoryMap = { 
-        "All": "הכל", "Fridges": "מקררים", "Freezers": "מקפיאים", "AC": "מזגנים", 
-        "Washing": "כביסה", "Dryers": "מייבשים", "Dishwashers": "מדיחים",
-        "Ovens": "תנורים", "Hobs": "כיריים", "TV": "טלוויזיות", "Blenders": "מיקסרים ובלנדרים"
-    };
-
-    // משיכת תמונה לקטגוריה
+    const categoryMap = { "All": "הכל", "Fridges": "מקררים", "AC": "מזגנים", "Washing": "כביסה", "Ovens": "תנורים", "TV": "טלוויזיות" };
     const getCategoryImage = (catKey) => {
         if(catKey === "All") return "https://cdn-icons-png.flaticon.com/512/3514/3514491.png";
         const p = products.find(prod => prod.category === catKey);
@@ -172,42 +174,67 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-gray-50 text-right font-assistant">
-            {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={addToCart} />}
-            {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
+            {showPromo && <PromoPopup onClose={() => setShowPromo(false)} />}
+            {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
             
-            {/* Header משודרג */}
-            <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-2 border-[#1e3a8a]">
+            {/* Header */}
+            <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-2 border-[#D4AF37]">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-6">
-                        <div className="cursor-pointer text-center md:text-right" onClick={()=>setFilter("All")}>
+                    <div className="flex items-center gap-6 w-full md:w-auto justify-between">
+                        <div className="cursor-pointer" onClick={()=>setFilter("All")}>
                             <div className="text-4xl font-black italic text-[#FFD814] drop-shadow-md">SMART<span className="text-white">BUY</span></div>
-                            <div className="text-[11px] font-bold tracking-widest text-white mt-1">קנייה חכמה מתחילה כאן</div>
+                            <div className="text-[11px] font-bold tracking-widest text-[#D4AF37] mt-1">קנייה חכמה מתחילה כאן</div>
                         </div>
                         <div className="hidden sm:block"><LanguageSwitcher /></div>
                     </div>
+                    
                     <div className="flex-grow max-w-xl w-full">
-                        <div className="relative group">
-                            <input type="text" placeholder="חפש מקרר, מסך, תנור..." className="w-full p-3 pr-10 rounded-xl text-black border-2 border-transparent focus:border-[#FFD814] transition-all shadow-inner" onChange={e=>setSearchQuery(e.target.value)} />
+                        <div className="relative">
+                            <input type="text" placeholder="חפש מוצר..." className="w-full p-3 pr-10 rounded-xl text-black focus:outline-none focus:ring-2 ring-[#FFD814]" onChange={e=>setSearchQuery(e.target.value)} />
                             <i className="fa-solid fa-magnifying-glass absolute left-3 top-4 text-gray-400"></i>
                         </div>
+                        {/* סקאלת תקציב שחזרה */}
+                        <div className="mt-2 flex items-center gap-3 text-[11px] font-bold text-[#D4AF37] bg-white/5 p-1 px-3 rounded-lg">
+                            <span>תקציב: ₪{maxPrice}</span>
+                            <input type="range" min="0" max="20000" step="100" value={maxPrice} onChange={e=>setMaxPrice(Number(e.target.value))} className="w-full accent-[#FFD814]" />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    <div className="flex items-center gap-4 w-full md:w-auto justify-between">
                         <div className="sm:hidden"><LanguageSwitcher /></div>
-                        <button onClick={()=>setIsCartOpen(true)} className="bg-[#FFD814] text-[#1e3a8a] px-5 py-3 rounded-2xl font-black flex items-center gap-2 hover:scale-105 transition-all shadow-md">
-                            <i className="fa-solid fa-cart-shopping"></i>
-                            <span>₪{cartTotal} ({cart.length})</span>
+                        
+                        {/* התחברות חברי מועדון */}
+                        {user ? (
+                            <div className="text-center group cursor-pointer relative" onClick={() => auth.signOut()}>
+                                <i className="fa-solid fa-user-check text-[#FFD814] text-xl"></i>
+                                <div className="text-[10px] font-bold">{user.name}</div>
+                                <div className="absolute top-10 bg-white text-black text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">התנתק</div>
+                            </div>
+                        ) : (
+                            <button onClick={() => setIsAuthOpen(true)} className="text-center hover:text-[#FFD814] transition-colors">
+                                <i className="fa-regular fa-user text-xl"></i>
+                                <div className="text-[10px] font-bold">מועדון / התחברות</div>
+                            </button>
+                        )}
+                        
+                        <button onClick={()=>setIsCartOpen(true)} className="bg-[#FFD814] text-[#1e3a8a] px-4 py-2 rounded-xl font-black flex items-center gap-2 hover:scale-105 transition-transform shadow-md">
+                            <i className="fa-solid fa-cart-shopping text-xl"></i>
+                            <div className="text-right leading-none">
+                                <div className="text-[10px]">סל שלי</div>
+                                <div>₪{cartTotal}</div>
+                            </div>
                         </button>
                     </div>
                 </div>
             </header>
 
-            {/* קטגוריות עם תמונות אמיתיות */}
-            <nav className="bg-white shadow-sm sticky top-[148px] md:top-[90px] z-40 overflow-x-auto hide-scroll px-6 py-4 border-b border-gray-200">
+            {/* קטגוריות מתמונות אמיתיות */}
+            <nav className="bg-white shadow-md sticky top-[158px] md:top-[92px] z-40 overflow-x-auto hide-scroll px-6 py-3">
                 <div className="max-w-7xl mx-auto flex gap-4 md:justify-center min-w-max">
                     {Object.keys(categoryMap).map(cat => (
-                        <button key={cat} onClick={() => { setFilter(cat); setMaxPrice(15000); }} className={`flex flex-col items-center justify-center min-w-[80px] p-2 rounded-2xl transition-all duration-300 border-2 ${filter === cat ? "border-[#1e3a8a] bg-blue-50 shadow-md scale-105" : "border-transparent hover:bg-gray-100"}`}>
-                            <div className="w-12 h-12 flex items-center justify-center bg-white rounded-full shadow-sm mb-2 p-2">
-                                <img src={getCategoryImage(cat)} alt={categoryMap[cat]} className="max-h-full max-w-full object-contain" />
+                        <button key={cat} onClick={() => { setFilter(cat); setMaxPrice(15000); }} className={`flex flex-col items-center min-w-[80px] p-2 rounded-2xl transition-all border-2 ${filter === cat ? "border-[#1e3a8a] bg-blue-50 shadow-inner scale-105" : "border-transparent hover:bg-gray-100"}`}>
+                            <div className="w-12 h-12 flex items-center justify-center bg-white rounded-full shadow-sm mb-1 p-1 overflow-hidden">
+                                <img src={getCategoryImage(cat)} alt={categoryMap[cat]} className="w-full h-full object-contain" />
                             </div>
                             <span className={`text-[11px] font-bold ${filter === cat ? "text-[#1e3a8a]" : "text-gray-600"}`}>{categoryMap[cat]}</span>
                         </button>
@@ -215,85 +242,92 @@ export default function App() {
                 </div>
             </nav>
 
-            {/* סליידר Hero */}
             <HeroSlider products={products} />
 
             {/* רשת מוצרים */}
-            <main className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            <main className="max-w-7xl mx-auto p-6 md:p-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filtered.map(p => (
-                    <div key={p.id} className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-xl transition-all group relative">
+                    <div key={p.id} className="bg-white p-5 rounded-3xl shadow-md border border-gray-100 flex flex-col justify-between hover:shadow-2xl transition-all group relative">
+                        
                         {/* תג מוצר מומלץ */}
                         {recommendedIds.has(p.id) && (
-                            <div className="absolute top-4 right-4 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-full z-10 flex items-center gap-1 shadow-md">
-                                <i className="fa-solid fa-fire"></i> מוצר מומלץ
+                            <div className="absolute top-4 right-4 bg-red-600 text-white text-[10px] font-bold px-3 py-1 rounded-full z-10 shadow-md">
+                                <i className="fa-solid fa-thumbs-up"></i> מוצר מומלץ
                             </div>
                         )}
+
+                        {/* בועת המלצות לקוחות (הכנה ל-AI) */}
+                        <div className="absolute top-4 left-4 z-20">
+                            <button onClick={(e) => { e.stopPropagation(); setActiveReview(activeReview === p.id ? null : p.id); }} className={`w-8 h-8 rounded-full shadow-md flex items-center justify-center transition-colors ${activeReview === p.id ? 'bg-[#1e3a8a] text-white' : 'bg-white text-[#1e3a8a] hover:bg-gray-100'}`}>
+                                <i className="fa-regular fa-comment-dots"></i>
+                            </button>
+                            {activeReview === p.id && (
+                                <div className="absolute top-10 left-0 bg-white p-3 rounded-xl shadow-2xl z-30 w-48 border-2 border-[#FFD814] text-right text-xs transform origin-top-left animate-fade-in">
+                                    <div className="text-[#FFD814] mb-1"><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i></div>
+                                    <p className="text-gray-600 mb-2">"סורק הביקורות החכם שלנו אוסף כרגע המלצות מלקוחות אמיתיים ברחבי הרשת..."</p>
+                                    <b className="text-[#1e3a8a]">מערכת AI</b>
+                                </div>
+                            )}
+                        </div>
                         
-                        <div className="relative h-48 flex items-center justify-center mb-4 cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                            <img src={p.image} className="max-h-full object-contain group-hover:scale-105 transition-transform duration-500" alt={p.name}/>
+                        <div className="relative h-48 flex items-center justify-center mb-4 mt-6">
+                            <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt={p.name}/>
                         </div>
                         <div>
-                            <h3 className="font-bold text-sm mb-2 h-10 line-clamp-2 text-gray-800 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
+                            <h3 className="font-bold text-sm mb-2 h-10 line-clamp-2 text-gray-800">{p.name}</h3>
                             <div className="flex items-baseline gap-2 mb-4">
                                 <span className="text-2xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
                                 <span className="text-xs text-gray-400 line-through">₪{Math.round(p.sellingPrice * 1.15)}</span>
                             </div>
                         </div>
-                        
-                        {/* 2 כפתורים: כרטיס מוצר + הוספה לסל */}
                         <div className="grid grid-cols-2 gap-2 mt-auto">
-                            <button onClick={() => setSelectedProduct(p)} className="bg-white border-2 border-[#1e3a8a] text-[#1e3a8a] hover:bg-gray-50 py-2 rounded-xl font-bold transition-all text-xs">כרטיס מוצר</button>
+                            <button className="bg-white border-2 border-[#1e3a8a] text-[#1e3a8a] hover:bg-gray-50 py-2 rounded-xl font-bold transition-all text-xs">כרטיס מוצר</button>
                             <button onClick={()=>addToCart(p)} className="bg-[#FFD814] text-[#1e3a8a] py-2 rounded-xl font-black hover:bg-[#F7CA00] transition-all text-xs shadow-sm">הוספה לסל</button>
                         </div>
                     </div>
                 ))}
             </main>
 
-            {/* אזור לקוחות ממליצים (הכנה לבוט) */}
-            <section className="max-w-7xl mx-auto p-8 mb-12">
-                <div className="text-center mb-8">
-                    <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">לקוחות ממליצים</h2>
-                    <p className="text-gray-500">הביקורות נסרקות ומאומתות מרחבי הרשת בזמן אמת</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                            <div>
-                                <div className="flex gap-1 text-[#FFD814] mb-4 text-sm">
-                                    <i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i>
-                                </div>
-                                <p className="text-gray-600 text-sm mb-4 italic leading-relaxed">
-                                    "מערכת ה-AI שלנו תסרוק בקרוב את הרשת ותציג כאן אוטומטית ביקורות חיוביות ואמיתיות של רוכשים עבור המוצרים המובילים באתר."
-                                </p>
+            {/* אזור המלצות כללי */}
+            <section className="bg-white py-12 border-t border-gray-200">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="text-center mb-8">
+                        <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">לקוחות ממליצים</h2>
+                        <p className="text-gray-500">בקרוב: שילוב אוטומטי של ביקורות מאומתות מרחבי הרשת (AI)</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-50">
+                        {[1,2,3].map(i => (
+                            <div key={i} className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                                <div className="text-[#FFD814] mb-3"><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i></div>
+                                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                                <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+                                <div className="h-3 bg-gray-300 rounded w-1/4"></div>
                             </div>
-                            <div className="font-bold text-[#1e3a8a] border-t pt-4">לקוח מאומת <i className="fa-solid fa-circle-check text-green-500 ml-1"></i></div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </section>
 
-            {/* Footer צהוב וכחול עם תקנונים */}
+            {/* פוטר */}
             <footer className="bg-[#FFD814] text-[#1e3a8a] py-16 px-8 border-t-[12px] border-[#1e3a8a]">
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-sm">
                     <div>
                         <div className="text-3xl font-black italic mb-4">SMARTBUY</div>
                         <p className="font-bold mb-4">קנייה חכמה מתחילה כאן.</p>
-                        <p className="leading-relaxed">החנות המובילה למכשירי חשמל בפריסה ארצית. איכות ללא פשרות, משלוח מהיר ומחירים שוברי שוק.</p>
+                        <p className="leading-relaxed">החנות המובילה למכשירי חשמל. איכות ללא פשרות ומחירים שוברי שוק.</p>
                     </div>
                     <div>
                         <h4 className="font-black text-lg mb-4 border-b-2 border-[#1e3a8a] pb-2 inline-block">שירות לקוחות</h4>
                         <ul className="space-y-3 font-bold">
-                            <li><i className="fa-solid fa-phone ml-2"></i> מוקד הזמנות: <a href="tel:0544914204" className="hover:underline dir-ltr inline-block">054-4914204</a></li>
+                            <li><i className="fa-solid fa-phone ml-2"></i> מוקד: <a href="tel:0544914204" className="hover:underline dir-ltr inline-block">054-4914204</a></li>
                             <li><i className="fa-solid fa-envelope ml-2"></i> דוא"ל: <a href="mailto:info@smartbuy.co.il" className="hover:underline">info@smartbuy.co.il</a></li>
-                            <li><i className="fa-regular fa-clock ml-2"></i> א'-ה' 09:00 - 18:00</li>
                         </ul>
                     </div>
                     <div>
                         <h4 className="font-black text-lg mb-4 border-b-2 border-[#1e3a8a] pb-2 inline-block">מידע שימושי</h4>
                         <ul className="space-y-3 font-bold">
                             <li><a href="#" className="hover:underline">תקנון האתר</a></li>
-                            <li><a href="#" className="hover:underline">מדיניות פרטיות</a></li>
-                            <li><a href="#" className="hover:underline">החזרות וביטולים</a></li>
+                            <li><a href="#" className="hover:underline">מדיניות פרטיות והחזרות</a></li>
                             <li><a href="#" className="hover:underline">הצהרת נגישות</a></li>
                         </ul>
                     </div>
@@ -304,24 +338,32 @@ export default function App() {
                             <i className="fa-brands fa-cc-mastercard"></i>
                             <i className="fa-brands fa-cc-apple-pay"></i>
                         </div>
-                        <p className="font-bold text-xs">האתר מאובטח בתקן המחמיר ביותר.</p>
                     </div>
                 </div>
             </footer>
 
-            {/* מגירת סל */}
-            <div className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-[400] transition-transform duration-500 border-r-4 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            {/* כפתור ווטסאפ צף שחזר! */}
+            <a href="https://wa.me/972544914204?text=שלום SmartBuy, אשמח לעזרה..." target="_blank" className="fixed bottom-6 left-6 bg-[#25D366] text-white w-14 h-14 rounded-full shadow-[0_10px_20px_rgba(37,211,102,0.4)] z-[150] hover:scale-110 transition-transform flex items-center justify-center border-2 border-white text-3xl">
+                <i className="fa-brands fa-whatsapp"></i>
+            </a>
+
+            {/* מגירת סל עם כפתור מחיקה */}
+            <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-[400] transition-transform duration-500 border-l-4 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="p-6 bg-[#1e3a8a] text-white flex justify-between items-center shadow-lg">
                     <span className="font-black text-xl text-[#FFD814]">הסל שלי</span>
                     <button onClick={()=>setIsCartOpen(false)} className="text-3xl">&times;</button>
                 </div>
                 <div className="p-4 overflow-y-auto h-[70vh] space-y-4">
                     {cart.map((item, i) => (
-                        <div key={i} className="flex gap-3 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                            <img src={item.image} className="w-16 h-16 object-contain bg-white rounded-lg p-1 shadow-sm" alt={item.name} />
+                        <div key={i} className="flex gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200 relative">
+                            {/* פח אשפה */}
+                            <button onClick={() => removeFromCart(i)} className="absolute top-1 right-1 bg-red-100 text-red-500 hover:bg-red-500 hover:text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10">
+                                <i className="fa-solid fa-trash text-xs"></i>
+                            </button>
+                            <img src={item.image} className="w-16 h-16 object-contain bg-white rounded-lg p-1 shadow-sm mr-4" />
                             <div className="flex flex-col justify-center">
-                                <span className="text-[11px] font-bold line-clamp-2 leading-tight">{item.name}</span>
-                                <b className="text-[#1e3a8a]">₪{item.sellingPrice}</b>
+                                <span className="text-[11px] font-bold line-clamp-2 leading-tight pr-2">{item.name}</span>
+                                <b className="text-[#1e3a8a] pr-2">₪{item.sellingPrice}</b>
                             </div>
                         </div>
                     ))}
@@ -331,7 +373,7 @@ export default function App() {
                         <span className="font-bold">סה"כ:</span>
                         <span className="text-3xl font-black text-[#1e3a8a]">₪{cartTotal}</span>
                     </div>
-                    <button onClick={()=>{setIsCartOpen(false); setIsCheckoutOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-xl">מעבר לקופה</button>
+                    <button onClick={()=>{setIsCartOpen(false); /* setIsCheckoutOpen(true); פה יבוא הקוד של הקופה */}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-xl">מעבר לקופה</button>
                 </div>
             </div>
             {isCartOpen && <div className="fixed inset-0 bg-black/50 z-[350] backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>}
