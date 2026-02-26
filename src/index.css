@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-gray-50 text-right overflow-x-hidden; font-family: 'Assistant', sans-serif; }
+.hide-scroll::-webkit-scrollbar { display: none; }
