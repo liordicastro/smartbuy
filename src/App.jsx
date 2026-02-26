@@ -18,22 +18,40 @@ const auth = getAuth(app);
 
 // --- רכיב החלפת שפות (מתוקן ושקט) ---
 const LanguageSwitcher = () => {
+    
+    useEffect(() => {
+        // טוען את מנוע התרגום של גוגל ברקע ברגע שהאתר עולה
+        if (!document.getElementById('google-translate-script')) {
+            window.googleTranslateElementInit = () => {
+                new window.google.translate.TranslateElement(
+                    { pageLanguage: 'he', autoDisplay: false },
+                    'google_translate_element'
+                );
+            };
+            const script = document.createElement('script');
+            script.id = 'google-translate-script';
+            script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+            script.async = true;
+            document.body.appendChild(script);
+        }
+    }, []);
+
     const changeLanguage = (langCode) => {
         if (langCode === 'he') {
-            // אם חוזרים לעברית, מוחקים את העוגיות של גוגל
             document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=.${window.location.hostname}; path=/;`;
         } else {
-            // שותלים עוגייה שאומרת לגוגל לתרגם מעברית לשפה שנבחרה
             document.cookie = `googtrans=/he/${langCode}; path=/`;
             document.cookie = `googtrans=/he/${langCode}; domain=.${window.location.hostname}; path=/`;
         }
-        // רענון קל כדי שהסקריפט של גוגל יקרא את העוגייה מיד
         window.location.reload();
     };
 
     return (
         <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner">
+            {/* אלמנט נסתר שגוגל חייב שיהיה קיים כדי לאתחל את עצמו */}
+            <div id="google_translate_element" className="hidden"></div>
+            
             {[ {c:'he', f:'🇮🇱'}, {c:'en', f:'🇺🇸'}, {c:'fr', f:'🇫🇷'}, {c:'ru', f:'🇷🇺'} ].map(l => (
                 <button 
                     key={l.c} 
@@ -47,7 +65,6 @@ const LanguageSwitcher = () => {
         </div>
     );
 };
-
 // --- פופ-אפ חגיגת מחירים ---
 const PromoPopup = ({ onClose }) => (
     <div className="fixed inset-0 bg-black/70 z-[600] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
