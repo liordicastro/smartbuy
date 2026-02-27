@@ -17,38 +17,87 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// --- 1. מודאל השוואת מוצרים ---
-const ComparisonModal = ({ list, onClose, onRemove }) => (
-    <div className="fixed inset-0 bg-black/90 z-[700] flex items-center justify-center p-4 backdrop-blur-xl" onClick={onClose}>
-        <div className="bg-white rounded-[50px] max-w-6xl w-full p-10 relative overflow-hidden flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.5)] border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
-            <button onClick={onClose} className="absolute top-8 left-8 text-4xl font-bold hover:rotate-90 transition-transform">&times;</button>
-            <h2 className="text-4xl font-black text-[#1e3a8a] mb-12 text-center underline decoration-[#FFD814] decoration-8">השוואת דגמים מקצועית</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 overflow-y-auto max-h-[65vh] px-4" dir="rtl">
-                {list.map(p => (
-                    <div key={p.id} className="border-2 border-gray-100 rounded-[40px] p-8 bg-gray-50 flex flex-col relative group">
-                        <button onClick={()=>onRemove(p.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-10 h-10 rounded-full shadow-xl font-bold group-hover:scale-110 transition-transform">✕</button>
-                        <img src={p.image} className="h-48 object-contain mb-8 bg-white rounded-3xl p-4 shadow-sm" alt={p.name} />
-                        <h4 className="font-black text-[#1e3a8a] text-lg mb-6 h-14 line-clamp-2">{p.name}</h4>
-                        <div className="space-y-4 text-sm font-bold">
-                            <div className="flex justify-between bg-white p-3 rounded-xl shadow-inner text-[#1e3a8a]"><span>מחיר SmartBuy:</span> <span>₪{p.sellingPrice}</span></div>
-                            <div className="flex justify-between bg-white p-3 rounded-xl shadow-inner text-gray-600"><span>מותג:</span> <span>{p.brand}</span></div>
-                            <div className="flex flex-col gap-2 bg-white p-4 rounded-xl shadow-inner">
-                                <span className="text-gray-400 text-xs uppercase tracking-widest">מפרט טכני</span>
-                                <div className="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto custom-scrollbar">
-                                    {p.specs?.dimensions && <p>• מידות: {p.specs.dimensions}</p>}
-                                    {p.specs?.key_features?.map((f, i) => <p key={i}>• {f}</p>)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+// --- 1. מודאל התחברות מועדון ---
+const AuthModal = ({ onClose, onGoogleLogin }) => (
+    <div className="fixed inset-0 bg-black/60 z-[700] flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-white rounded-[35px] w-full max-w-md p-8 relative text-center shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-5 left-5 text-gray-400 hover:text-black text-2xl font-bold"><i className="fa-solid fa-xmark"></i></button>
+            <div className="text-6xl mb-4 text-[#FFD814]">👑</div>
+            <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">מועדון SmartBuy</h2>
+            <p className="text-gray-500 mb-8 font-bold text-sm">התחברו כדי לקבל הטבות VIP, הנחות אישיות ומעקב הזמנות.</p>
+
+            <div className="space-y-3">
+                <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-brands fa-google text-red-500 text-xl"></i> התחברות עם חשבון Google
+                </button>
+                <button onClick={()=>alert('התחברות דרך אפל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-brands fa-apple text-xl text-black"></i> התחברות עם Apple ID
+                </button>
+                <button onClick={()=>alert('התחברות במייל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-regular fa-envelope text-xl text-blue-500"></i> התחברות עם אימייל
+                </button>
+                <button onClick={()=>alert('התחברות ב-SMS תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-solid fa-mobile-screen text-xl text-green-500"></i> קוד חד פעמי (SMS)
+                </button>
             </div>
-            {list.length === 0 && <div className="text-center py-20 font-bold text-gray-400">אין מוצרים להשוואה</div>}
         </div>
     </div>
 );
 
-// --- 2. מודאל מוצר מלא (SEO + סקירות + מפרט) ---
+// --- 2. מודאל השוואת מוצרים עם המלצת AI ---
+const ComparisonModal = ({ list, onClose, onRemove }) => {
+    // לוגיקת המלצת SmartBuy (מחשבת לפי המחיר הנמוך ביותר כברירת מחדל, כדוגמה)
+    const getRecommendation = () => {
+        if (list.length < 2) return "הוסיפו לפחות עוד מוצר אחד כדי לקבל השוואה והמלצה מדויקת.";
+        const bestValue = list.reduce((prev, curr) => (curr.sellingPrice < prev.sellingPrice ? curr : prev));
+        return `לאחר שקלול הנתונים, הדגם ${bestValue.name} מציע את התמורה הטובה ביותר למחיר בקטגוריה זו. מדובר בבחירה מצוינת!`;
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 z-[700] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-[40px] max-w-6xl w-full p-8 relative overflow-hidden flex flex-col shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-6 left-6 text-3xl font-bold hover:text-red-500 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                <h2 className="text-3xl font-black text-[#1e3a8a] mb-8 text-center uppercase tracking-tighter">השוואת דגמים מתקדמת</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto max-h-[50vh] px-2 mb-6" dir="rtl">
+                    {list.map(p => (
+                        <div key={p.id} className="border-2 border-gray-100 rounded-[30px] p-6 bg-gray-50 flex flex-col relative shadow-sm">
+                            <button onClick={()=>onRemove(p.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg hover:scale-110 transition-transform font-bold"><i className="fa-solid fa-xmark text-sm"></i></button>
+                            <img src={p.image} className="h-32 object-contain mb-4 bg-white rounded-2xl p-2 shadow-sm" alt={p.name} />
+                            <h4 className="font-black text-[#1e3a8a] text-sm mb-4 h-10 line-clamp-2">{p.name}</h4>
+                            <div className="space-y-3 text-xs font-bold">
+                                <div className="flex justify-between bg-white p-2 rounded-xl shadow-sm text-[#1e3a8a]"><span>מחיר:</span> <span className="text-base">₪{p.sellingPrice}</span></div>
+                                <div className="flex justify-between bg-white p-2 rounded-xl shadow-sm text-gray-600"><span>מותג:</span> <span>{p.brand || 'כללי'}</span></div>
+                                <div className="flex flex-col gap-1 bg-white p-3 rounded-xl shadow-sm">
+                                    <span className="text-gray-400 uppercase tracking-widest text-[10px]">מפרט חלקי</span>
+                                    <div className="text-gray-700 leading-relaxed max-h-24 overflow-y-auto custom-scrollbar">
+                                        {p.specs?.dimensions && <p>• מידות: {p.specs.dimensions}</p>}
+                                        {p.specs?.energy_rating && <p>• דירוג אנרגטי: {p.specs.energy_rating}</p>}
+                                        {p.specs?.key_features?.map((f, i) => <p key={i}>• {f}</p>)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {list.length === 0 && <div className="text-center py-10 font-bold text-gray-400 col-span-full">אין מוצרים להשוואה</div>}
+                </div>
+
+                {/* המלצת SMART BUY */}
+                {list.length > 0 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-[#FFD814]/20 p-6 rounded-3xl border-2 border-[#FFD814] shadow-inner text-right relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-[#FFD814] rounded-full blur-3xl opacity-30"></div>
+                        <h4 className="text-lg font-black text-[#1e3a8a] mb-2 flex items-center gap-2">
+                            <i className="fa-solid fa-robot text-[#FFD814]"></i> קבלו המלצה מ-SmartBuy
+                        </h4>
+                        <p className="text-gray-800 font-bold text-sm leading-relaxed">{getRecommendation()}</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- 3. מודאל מוצר משופר ---
 const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo }) => {
     const [reviewForm, setReviewForm] = useState({ name: '', text: '', rating: 5 });
     const [isExpanded, setIsExpanded] = useState(false);
@@ -60,17 +109,8 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
         "image": [product.image],
         "description": product.expertArticleTitle || product.name,
         "brand": { "@type": "Brand", "name": product.brand || "SmartBuy" },
-        "offers": {
-            "@type": "Offer",
-            "priceCurrency": "ILS",
-            "price": product.sellingPrice,
-            "availability": "https://schema.org/InStock"
-        },
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.9",
-            "reviewCount": product.reviews?.length || "1"
-        }
+        "offers": { "@type": "Offer", "priceCurrency": "ILS", "price": product.sellingPrice, "availability": "https://schema.org/InStock" },
+        "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "reviewCount": product.reviews?.length || "1" }
     };
 
     const handleReviewSubmit = (e) => {
@@ -80,53 +120,70 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 z-[600] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/80 z-[600] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onClick={onClose}>
             <Helmet>
                 <title>{product.name} | SmartBuy</title>
-                <meta name="description" content={`קנו עכשיו את ${product.name} במחיר SmartBuy מנצח: ₪${product.sellingPrice}.`} />
+                <meta name="description" content={`קנו עכשיו את ${product.name} במחיר מנצח: ₪${product.sellingPrice}.`} />
                 <script type="application/ld+json">{JSON.stringify(schemaMarkup)}</script>
             </Helmet>
-            <div className="bg-white rounded-[50px] max-w-6xl w-full max-h-[92vh] overflow-hidden flex flex-col relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-6 left-6 bg-white rounded-full w-12 h-12 flex items-center justify-center text-gray-400 hover:text-black shadow-md text-4xl font-bold z-50 transition-all hover:rotate-90">&times;</button>
+            <div className="bg-white rounded-[40px] max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 left-4 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-600 shadow-sm text-xl font-bold z-50 transition-all"><i className="fa-solid fa-xmark"></i></button>
+                
                 <div className="grid grid-cols-1 md:grid-cols-5 h-full overflow-hidden text-right" dir="rtl">
-                    <div className="md:col-span-2 p-10 bg-gray-50 flex flex-col items-center justify-center border-l shadow-inner overflow-y-auto">
-                        {brandLogo && <img src={brandLogo} className="h-14 mb-8 object-contain opacity-80" alt="brand" />}
-                        <img src={product.image} className="max-h-72 object-contain mb-8 hover:scale-110 transition-transform duration-700" alt={product.name} />
-                        <h2 className="text-3xl font-black text-[#1e3a8a] mb-8 text-center leading-tight">{product.name}</h2>
-                        <div className="w-full bg-white p-8 rounded-[40px] shadow-sm text-center border">
-                            <div className="text-xs font-black text-gray-300 uppercase mb-2">מחיר השוק: ₪{Math.round(product.sellingPrice * 1.25)}</div>
-                            <div className="text-6xl font-black text-[#1e3a8a] mb-8">₪{product.sellingPrice}</div>
-                            <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] text-[#1e3a8a] font-black py-6 rounded-[25px] text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all">הוספה לסל המאובטח</button>
+                    {/* תמונה ומחיר */}
+                    <div className="md:col-span-2 p-8 bg-gray-50 flex flex-col items-center justify-center border-l shadow-inner overflow-y-auto">
+                        {brandLogo && <img src={brandLogo} className="h-10 mb-6 object-contain opacity-70" alt="brand" />}
+                        <img src={product.image} className="max-h-64 object-contain mb-6 hover:scale-105 transition-transform duration-700" alt={product.name} />
+                        <h2 className="text-xl font-black text-[#1e3a8a] mb-4 text-center leading-tight">{product.name}</h2>
+                        <div className="flex items-center gap-1 text-[#FFD814] text-sm mb-6 bg-white px-3 py-1 rounded-full shadow-sm border">
+                            <i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star-half-stroke"></i>
+                            <span className="text-gray-400 text-xs ml-1">(4.8)</span>
+                        </div>
+                        <div className="w-full bg-white p-6 rounded-3xl shadow-sm text-center border">
+                            <div className="text-[10px] font-black text-gray-400 uppercase mb-1">מחיר מומלץ: ₪{Math.round(product.sellingPrice * 1.25)}</div>
+                            <div className="text-5xl font-black text-[#1e3a8a] mb-6">₪{product.sellingPrice}</div>
+                            <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] text-[#1e3a8a] font-black py-4 rounded-[20px] text-lg shadow-md hover:scale-105 active:scale-95 transition-all">הוספה לסל המאובטח</button>
                         </div>
                     </div>
-                    <div className="md:col-span-3 p-10 bg-white overflow-y-auto custom-scrollbar">
-                        <section className="mb-12">
-                            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-4 py-2 rounded-xl font-black text-xs mb-4 border border-blue-100 uppercase tracking-widest"><i className="fa-solid fa-award text-[#FFD814]"></i> סקירת מומחי SmartBuy</div>
-                            <h3 className="text-3xl font-black text-gray-900 mb-6">{product.expertArticleTitle || 'פרטי מוצר מלאים'}</h3>
-                            <div className={`relative overflow-hidden transition-all duration-700 ${isExpanded ? 'max-h-[3000px]' : 'max-h-48'}`}>
-                                <p className="text-gray-600 leading-loose text-base font-medium whitespace-pre-wrap">{product.expertArticleBody}</p>
-                                {!isExpanded && <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent"></div>}
+                    
+                    {/* תוכן, מפרט וביקורות */}
+                    <div className="md:col-span-3 p-8 bg-white overflow-y-auto custom-scrollbar">
+                        <section className="mb-10">
+                            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-3 py-1.5 rounded-xl font-black text-xs mb-3 border border-blue-100"><i className="fa-solid fa-award text-[#FFD814]"></i> סקירת מומחי SmartBuy</div>
+                            <h3 className="text-2xl font-black text-gray-900 mb-4">{product.expertArticleTitle || 'פרטי מוצר מלאים'}</h3>
+                            <div className={`relative overflow-hidden transition-all duration-700 ${isExpanded ? 'max-h-[3000px]' : 'max-h-32'}`}>
+                                <p className="text-gray-600 leading-relaxed text-sm font-medium whitespace-pre-wrap">{product.expertArticleBody}</p>
+                                {!isExpanded && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>}
                             </div>
-                            <button onClick={() => setIsExpanded(!isExpanded)} className="mt-6 text-[#1e3a8a] font-black text-sm border-b-2 border-[#1e3a8a] pb-1 hover:text-blue-800">{isExpanded ? 'סגור סקירה' : 'להמשך קריאה...'}</button>
+                            <button onClick={() => setIsExpanded(!isExpanded)} className="mt-4 text-[#1e3a8a] font-black text-xs hover:underline">{isExpanded ? 'סגור סקירה' : 'להמשך קריאה...'}</button>
                         </section>
+
+                        {/* מפרט טכני מורחב */}
                         {product.specs && (
-                            <section className="mb-12 bg-gray-50 rounded-[40px] p-8 border shadow-inner">
-                                <h4 className="font-black text-[#1e3a8a] mb-6 flex items-center gap-2 text-xl underline decoration-[#FFD814]">מפרט טכני מלא</h4>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-white p-4 rounded-2xl border font-bold text-sm shadow-sm flex flex-col"><span className="text-xs text-gray-400 mb-1">מידות:</span> {product.specs.dimensions || 'לפי יצרן'}</div>
-                                    <div className="bg-white p-4 rounded-2xl border font-bold text-sm shadow-sm flex flex-col"><span className="text-xs text-gray-400 mb-1">צבע:</span> {product.specs.color || 'סטנדרט'}</div>
+                            <section className="mb-10 bg-gray-50 rounded-[30px] p-6 border shadow-inner">
+                                <h4 className="font-black text-[#1e3a8a] mb-4 flex items-center gap-2"><i className="fa-solid fa-list-check"></i> מפרט טכני</h4>
+                                <div className="grid grid-cols-2 gap-3 text-xs">
+                                    {product.specs.dimensions && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm"><span className="text-gray-400 block mb-1 text-[10px]">מידות:</span> {product.specs.dimensions}</div>}
+                                    {product.specs.color && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm"><span className="text-gray-400 block mb-1 text-[10px]">צבע:</span> {product.specs.color}</div>}
+                                    {product.specs.energy_rating && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm"><span className="text-gray-400 block mb-1 text-[10px]">דירוג אנרגטי:</span> {product.specs.energy_rating}</div>}
+                                    {product.specs.warranty && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm"><span className="text-gray-400 block mb-1 text-[10px]">אחריות:</span> {product.specs.warranty}</div>}
                                 </div>
                             </section>
                         )}
-                        <section className="pt-8 border-t-2 border-dashed">
-                            <h4 className="font-black text-[#1e3a8a] text-2xl mb-8">מה הלקוחות אומרים?</h4>
-                            <div className="space-y-6">
+
+                        <section className="pt-6 border-t-2 border-dashed">
+                            <h4 className="font-black text-[#1e3a8a] text-xl mb-6">חוות דעת של לקוחות שקנו</h4>
+                            <div className="space-y-4 mb-6">
                                 {product.reviews?.map((rev, i) => (
-                                    <div key={i} className="bg-white p-6 rounded-[30px] border shadow-sm relative group">
-                                        <div className="flex justify-between text-xs mb-2 font-black text-[#1e3a8a]"><span>{rev.name}</span><div className="text-[#FFD814]">{[...Array(rev.rating)].map((_,s)=><i key={s} className="fa-solid fa-star"></i>)}</div></div>
-                                        <p className="text-gray-600 text-sm italic">"{rev.text}"</p>
+                                    <div key={i} className="bg-white p-4 rounded-2xl border shadow-sm">
+                                        <div className="flex justify-between text-xs mb-2 font-black text-[#1e3a8a]">
+                                            <span>{rev.name}</span>
+                                            <div className="text-[#FFD814]">{[...Array(rev.rating)].map((_,s)=><i key={s} className="fa-solid fa-star"></i>)}</div>
+                                        </div>
+                                        <p className="text-gray-600 text-xs italic leading-relaxed">"{rev.text}"</p>
                                     </div>
                                 ))}
+                                {(!product.reviews || product.reviews.length === 0) && <p className="text-sm font-bold text-gray-400 text-center py-4">היו הראשונים לדרג מוצר זה!</p>}
                             </div>
                         </section>
                     </div>
@@ -136,68 +193,83 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
     );
 };
 
-// --- 3. מודאל קופה ---
+// --- 4. מודאל קופה ---
 const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
     const [formData, setFormData] = useState({ name: '', phone: '' });
     const handleSubmit = async (e) => {
         e.preventDefault();
         await addDoc(collection(db, "orders"), { customer: formData, items: cart, totalAmount: total, status: 'חדש', createdAt: serverTimestamp() });
-        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה*:%0Aשם: ${formData.name}%0Aסה"כ: ₪${total}`, '_blank');
+        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה ב-SmartBuy!*%0Aשם: ${formData.name}%0Aסה"כ לתשלום: ₪${total}`, '_blank');
         onClearCart(); onClose();
     };
     return (
-        <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/80 z-[800] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
             <div className="bg-white rounded-[40px] max-w-lg w-full p-10 relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-6 left-6 text-3xl font-bold hover:text-red-500 transition-colors">&times;</button>
-                <h2 className="text-3xl font-black text-[#1e3a8a] mb-8 text-center px-4">השלמת הזמנה מהירה</h2>
-                <form onSubmit={handleSubmit} className="space-y-6 text-right" dir="rtl">
-                    <input required placeholder="שם מלא" className="w-full p-5 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-[#FFD814] outline-none font-bold" onChange={e=>setFormData({...formData, name: e.target.value})} />
-                    <input required placeholder="מספר טלפון" className="w-full p-5 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-[#FFD814] outline-none font-bold" onChange={e=>setFormData({...formData, phone: e.target.value})} />
-                    <div className="bg-blue-50 p-6 rounded-[30px] text-center border-2 border-blue-100 text-5xl font-black text-[#1e3a8a]">₪{total}</div>
-                    <button type="submit" className="w-full bg-[#1e3a8a] text-white py-5 rounded-2xl font-black text-xl shadow-xl hover:scale-[1.02] transition-all">אישור ב-WhatsApp</button>
+                <button onClick={onClose} className="absolute top-6 left-6 text-2xl text-gray-400 hover:text-black font-bold"><i className="fa-solid fa-xmark"></i></button>
+                <h2 className="text-2xl font-black text-[#1e3a8a] mb-8 text-center px-4">פרטי משלוח מהיר</h2>
+                <form onSubmit={handleSubmit} className="space-y-4 text-right" dir="rtl">
+                    <input required placeholder="שם מלא" className="w-full p-4 bg-gray-50 rounded-2xl border-2 focus:border-[#FFD814] outline-none font-bold text-sm" onChange={e=>setFormData({...formData, name: e.target.value})} />
+                    <input required placeholder="טלפון ליצירת קשר" className="w-full p-4 bg-gray-50 rounded-2xl border-2 focus:border-[#FFD814] outline-none font-bold text-sm" onChange={e=>setFormData({...formData, phone: e.target.value})} />
+                    <div className="bg-blue-50 p-6 rounded-2xl text-center border">
+                        <div className="text-[10px] font-black text-gray-500 mb-1">סה"כ לתשלום סופי</div>
+                        <div className="text-4xl font-black text-[#1e3a8a]">₪{total}</div>
+                    </div>
+                    <button type="submit" className="w-full bg-[#1e3a8a] text-white py-4 rounded-2xl font-black text-lg shadow-lg hover:scale-105 transition-all">המשך לתיאום ב-WhatsApp</button>
                 </form>
             </div>
         </div>
     );
 };
 
-// --- 4. סליידר Hero ---
+// --- 5. רכיב שפות חזק יותר נגד סרגל גוגל ---
+const LanguageSwitcher = () => {
+    useEffect(() => {
+        if (!document.getElementById('clean-translate')) {
+            const style = document.createElement('style');
+            style.id = 'clean-translate';
+            style.innerHTML = `
+                .goog-te-banner-frame.skiptranslate, .goog-te-gadget-icon { display: none !important; }
+                body { top: 0px !important; position: static !important; }
+                #goog-gt-tt, .goog-tooltip { display: none !important; }
+                #google_translate_element { display: none !important; }
+            `;
+            document.head.appendChild(style);
+        }
+    }, []);
+    return (
+        <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner relative z-[60]">
+            {[ {c:'he', f:'🇮🇱'}, {c:'en', f:'🇺🇸'}, {c:'fr', f:'🇫🇷'}, {c:'ru', f:'🇷🇺'} ].map(l => (
+                <button key={l.c} className="text-xl hover:scale-125 transition-transform" onClick={() => {
+                    const select = document.querySelector(".goog-te-combo");
+                    if (select) { select.value = l.c; select.dispatchEvent(new Event("change")); }
+                }}>{l.f}</button>
+            ))}
+        </div>
+    );
+};
+
+// --- Hero Slider ---
 const HeroSlider = ({ products }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const heroList = useMemo(() => products.slice(0, 5), [products]);
-    
     useEffect(() => {
         if (heroList.length === 0) return;
         const itv = setInterval(() => setCurrentIndex(p => (p + 1) % heroList.length), 4500);
         return () => clearInterval(itv);
     }, [heroList]);
-
     if (heroList.length === 0) return null;
-    
     return (
-        <div className="w-full h-48 md:h-72 bg-black relative overflow-hidden flex items-center justify-center border-b-[12px] border-[#FFD814] shadow-2xl">
+        <div className="w-full h-40 md:h-64 bg-black relative overflow-hidden flex items-center justify-center border-b-[8px] border-[#FFD814]">
             <img src={heroList[currentIndex].image} className="absolute inset-0 w-full h-full object-cover scale-110 opacity-30 blur-[2px] transition-all duration-1000" alt="Hero" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a8a] to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a8a] to-transparent opacity-80"></div>
             <div className="absolute z-20 text-center px-4 animate-fade-in">
-                <div className="bg-[#FFD814] text-[#1e3a8a] px-4 py-1 rounded-full text-[10px] font-black uppercase mb-4 shadow-lg inline-block">Flash Deal</div>
-                <h2 className="text-white text-3xl md:text-6xl font-black drop-shadow-2xl mb-2 tracking-tighter">{heroList[currentIndex].name}</h2>
-                <div className="text-[#FFD814] text-2xl font-black italic">המחיר הטוב ביותר בישראל לחברי מועדון 👑</div>
+                <div className="bg-[#FFD814] text-[#1e3a8a] px-3 py-1 rounded-full text-[10px] font-black mb-3 inline-block">מבצע בזק!</div>
+                <h2 className="text-white text-2xl md:text-5xl font-black drop-shadow-2xl mb-2">{heroList[currentIndex].name}</h2>
+                <div className="text-[#FFD814] text-lg font-black">₪{heroList[currentIndex].sellingPrice} בלבד</div>
             </div>
         </div>
     );
 };
-
-// --- 5. רכיב החלפת שפות ---
-const LanguageSwitcher = () => (
-    <div className="flex gap-2 items-center bg-[#1e3a8a] px-3 py-1.5 rounded-full border border-white/20 shadow-inner relative z-[60]">
-        {[ {c:'he', f:'🇮🇱'}, {c:'en', f:'🇺🇸'}, {c:'fr', f:'🇫🇷'}, {c:'ru', f:'🇷🇺'} ].map(l => (
-            <button key={l.c} className="text-xl hover:scale-125 transition-transform" onClick={() => {
-                const select = document.querySelector(".goog-te-combo");
-                if (select) { select.value = l.c; select.dispatchEvent(new Event("change")); }
-            }}>{l.f}</button>
-        ))}
-    </div>
-);
 
 // ==========================================
 // אפליקציה ראשית - SmartBuy
@@ -215,13 +287,11 @@ export default function App() {
     const [compareList, setCompareList] = useState([]);
     const [isCompareOpen, setIsCompareOpen] = useState(false);
     const [user, setUser] = useState(null);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
-    
-    // סטייטים חדשים עבור הקופון (שתוקנו!)
     const [couponCode, setCouponCode] = useState("");
     const [discount, setDiscount] = useState(0);
 
-    // טעינת נתונים
     useEffect(() => {
         const unsub = onSnapshot(collection(db, "products"), s => setProducts(s.docs.map(d => ({id: d.id, ...d.data()}))));
         onAuthStateChanged(auth, u => setUser(u));
@@ -259,8 +329,7 @@ export default function App() {
         const groups = {};
         Object.keys(categoryMap).forEach(key => {
             if (key === "All") return;
-            const items = products.filter(p => p.category === key);
-            if (items.length > 0) groups[key] = items;
+            groups[key] = products.filter(p => p.category === key);
         });
         return groups;
     }, [products]);
@@ -270,281 +339,256 @@ export default function App() {
         if (!compareList.find(i=>i.id===p.id)) setCompareList([...compareList, p]);
     };
 
-    const handleLogin = () => signInWithPopup(auth, new GoogleAuthProvider());
-    
-    // חישוב הסל (כולל הנחה)
     const cartTotal = Math.round(cart.reduce((sum, i) => sum + i.sellingPrice, 0) * (1 - discount));
-
-    // הפונקציה החסרה שהוחזרה!
+    
     const applyCoupon = () => {
-        if (couponCode.toUpperCase() === "SMART10") {
-            setDiscount(0.1);
-            alert("קופון SMART10 הופעל בהצלחה (10% הנחה!)");
-        } else {
-            setDiscount(0);
-            alert("קוד קופון לא חוקי");
-        }
+        if (couponCode.toUpperCase() === "SMART10") { setDiscount(0.1); alert("קופון הופעל בהצלחה!"); }
+        else { setDiscount(0); alert("קוד קופון לא חוקי"); }
     };
 
     const handleAddReview = async (pid, rev) => {
         await updateDoc(doc(db, "products", pid), { reviews: arrayUnion({ ...rev, date: new Date().toISOString() }) });
-        alert("תודה! הביקורת נוספה בהצלחה.");
+        alert("הביקורת נוספה בהצלחה!");
     };
 
     return (
         <HelmetProvider>
             <div className="min-h-screen bg-gray-50 text-right font-assistant overflow-x-hidden" dir="rtl">
                 
-                {/* Modals */}
+                {/* Modals פתוחים */}
                 {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={handleAddReview} brandLogo={brandLogos[selectedProduct.brand]} />}
                 {isCompareOpen && <ComparisonModal list={compareList} onClose={()=>setIsCompareOpen(false)} onRemove={(id)=>setCompareList(compareList.filter(i=>i.id!==id))} />}
                 {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
+                {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={()=>{ signInWithPopup(auth, new GoogleAuthProvider()); setIsAuthModalOpen(false); }} />}
 
                 {/* Header */}
-                <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-4 border-[#FFD814] py-5 px-6">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex items-center gap-8 w-full md:w-auto justify-between">
-                            <div className="cursor-pointer group" onClick={()=>{setFilter("All"); setSearchQuery(""); setSelectedBrands([]); setMaxPrice(25000);}}>
-                                <div className="text-4xl font-black italic text-[#FFD814] group-hover:scale-105 transition-transform">SMARTBUY</div>
-                                <div className="text-[10px] font-bold text-white uppercase tracking-widest opacity-80 mt-1">Professional Electric Store</div>
+                <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-4 border-[#FFD814] py-4 px-4 md:px-6">
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-6 w-full md:w-auto justify-between">
+                            <div className="cursor-pointer" onClick={()=>{setFilter("All"); setSearchQuery(""); setSelectedBrands([]); setMaxPrice(25000);}}>
+                                <div className="text-3xl font-black italic text-[#FFD814]">SMARTBUY</div>
+                                <div className="text-[10px] font-bold text-white uppercase tracking-widest mt-1 opacity-80">מוצרי חשמל במחירי רצפה</div>
                             </div>
                             <LanguageSwitcher />
                         </div>
                         <div className="flex-grow max-w-xl w-full relative">
-                            <input type="text" placeholder="מה תרצו לקנות היום? חפשו דגם או מוצר..." className="w-full p-4 pr-12 rounded-[25px] text-black focus:ring-8 ring-[#FFD814]/30 outline-none font-bold shadow-inner" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
-                            <i className="fa-solid fa-magnifying-glass absolute right-4 top-5 text-gray-300"></i>
+                            <input type="text" placeholder="חיפוש מוצרים, למשל: תנור בוש..." className="w-full p-3 pr-10 rounded-xl text-black focus:ring-4 ring-[#FFD814]/30 outline-none text-sm font-bold" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
+                            <i className="fa-solid fa-magnifying-glass absolute right-3 top-4 text-gray-400"></i>
                         </div>
-                        <div className="flex items-center gap-6">
-                            {user ? <div className="text-xs font-bold text-center">שלום, <br/> {user.displayName?.split(' ')[0]}</div> : <button onClick={handleLogin} className="text-xs font-black bg-[#FFD814] text-[#1e3a8a] px-6 py-2.5 rounded-full shadow-lg hover:scale-105 transition-all uppercase">Club Join 👑</button>}
-                            <button onClick={()=>setIsCartOpen(true)} className="bg-white/10 text-white px-6 py-3 rounded-full font-black flex items-center gap-3 border border-white/20 hover:bg-[#FFD814] hover:text-[#1e3a8a] transition-all shadow-xl">
-                                <i className="fa-solid fa-cart-shopping text-xl"></i> ₪{cartTotal}
+                        <div className="flex items-center gap-3">
+                            {user ? (
+                                <div className="text-xs font-bold text-center border-l pr-3 border-white/20">שלום,<br/>{user.displayName?.split(' ')[0]}</div>
+                            ) : (
+                                <button onClick={()=>setIsAuthModalOpen(true)} className="text-[10px] font-black bg-white/10 text-white px-3 py-2 rounded-lg hover:bg-white/20 transition-all">חברי מועדון 👑</button>
+                            )}
+                            <button onClick={()=>setIsCartOpen(true)} className="bg-[#FFD814] text-[#1e3a8a] px-5 py-2 rounded-xl font-black flex items-center gap-2 shadow-lg hover:scale-105 transition-all">
+                                <i className="fa-solid fa-cart-shopping"></i> ₪{cartTotal}
                             </button>
                         </div>
                     </div>
                 </header>
 
-                {/* Navbar (Categories with Dynamic Images) */}
-                <nav className="bg-white border-b sticky top-[152px] md:top-[98px] z-40 overflow-x-auto py-8 px-6 shadow-md scrollbar-hide">
-                    <div className="max-w-7xl mx-auto flex gap-8 md:justify-center min-w-max px-4">
+                {/* Navbar תמונות קטגוריה */}
+                <nav className="bg-white border-b sticky top-[135px] md:top-[80px] z-40 overflow-x-auto py-4 px-4 shadow-sm scrollbar-hide">
+                    <div className="max-w-7xl mx-auto flex gap-4 md:justify-center min-w-max">
                         {Object.keys(categoryMap).map(cat => {
                             const sampleImg = products.find(p => p.category === cat)?.image;
                             return (
-                                <button key={cat} onClick={() => {setFilter(cat); setSelectedBrands([]); setSearchQuery("");}} className={`flex flex-col items-center min-w-[120px] p-5 rounded-[40px] transition-all border-2 active:scale-90 ${filter === cat ? "border-[#1e3a8a] bg-blue-50 scale-110 shadow-2xl z-10" : "border-transparent bg-white hover:bg-gray-50 opacity-80 shadow-sm"}`}>
-                                    {sampleImg ? <img src={sampleImg} className="w-12 h-12 object-contain mb-3 rounded-full p-2 bg-gray-100 shadow-inner" alt={cat} /> : <i className="fa-solid fa-layer-group text-2xl mb-3 opacity-20"></i>}
-                                    <span className={`text-sm font-black ${filter === cat ? "text-[#1e3a8a]" : "text-gray-500"}`}>{categoryMap[cat]}</span>
+                                <button key={cat} onClick={() => {setFilter(cat); setSelectedBrands([]); setSearchQuery("");}} className={`flex flex-col items-center min-w-[90px] p-3 rounded-2xl transition-all border ${filter === cat ? "border-[#1e3a8a] bg-blue-50 shadow-md scale-105 z-10" : "border-transparent bg-white hover:bg-gray-50 opacity-80"}`}>
+                                    {sampleImg ? <img src={sampleImg} className="w-10 h-10 object-contain mb-1 rounded-full bg-gray-50 p-1" /> : <i className="fa-solid fa-layer-group text-xl mb-1 text-gray-300"></i>}
+                                    <span className={`text-[11px] font-black ${filter === cat ? "text-[#1e3a8a]" : "text-gray-600"}`}>{categoryMap[cat]}</span>
                                 </button>
                             );
                         })}
                     </div>
                 </nav>
 
-                {/* Compare Float Button */}
+                {/* כפתור השוואה צף */}
                 {compareList.length > 0 && (
-                    <button onClick={()=>setIsCompareOpen(true)} className="fixed bottom-32 right-8 bg-[#1e3a8a] text-white px-10 py-6 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-[450] animate-bounce-in flex items-center gap-5 border-4 border-[#FFD814] font-black text-xl hover:scale-110 transition-all">
-                        <i className="fa-solid fa-code-compare text-3xl"></i>
-                        השווה דגמים ({compareList.length})
+                    <button onClick={()=>setIsCompareOpen(true)} className="fixed bottom-24 right-6 bg-[#1e3a8a] text-white px-6 py-4 rounded-full shadow-2xl z-[450] animate-bounce-in flex items-center gap-3 border-2 border-[#FFD814] font-black text-sm">
+                        <i className="fa-solid fa-code-compare"></i> השווה ({compareList.length})
                     </button>
                 )}
 
                 <HeroSlider products={products} />
 
-                {/* Main Content Layout */}
-                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-12 p-4 md:p-10 mt-6">
+                {/* מבנה מרכזי */}
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 p-4 mt-2">
                     
-                    {/* Sidebar */}
-                    <aside className={`lg:w-80 w-full space-y-10 lg:block ${isFilterMenuOpen ? 'block' : 'hidden'}`}>
-                        <div className="bg-white p-10 rounded-[50px] shadow-2xl border sticky top-44 z-10">
-                            <h3 className="text-2xl font-black text-[#1e3a8a] mb-10 border-b pb-4 flex items-center gap-3">
-                                <i className="fa-solid fa-sliders text-[#FFD814]"></i> סינון מהיר
+                    {/* Sidebar סינון מחירים */}
+                    <aside className={`lg:w-64 w-full space-y-6 lg:block ${isFilterMenuOpen ? 'block' : 'hidden'}`}>
+                        <div className="bg-white p-6 rounded-3xl shadow-sm border sticky top-40 z-10">
+                            <h3 className="text-lg font-black text-[#1e3a8a] mb-6 border-b pb-2 flex items-center gap-2">
+                                <i className="fa-solid fa-filter text-[#FFD814]"></i> סינון מוצרים
                             </h3>
-                            <div className="mb-12">
-                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-4">מחיר מקסימלי: ₪{maxPrice}</label>
-                                <input type="range" min="0" max="25000" step="500" value={maxPrice} onChange={e=>setMaxPrice(Number(e.target.value))} className="w-full accent-[#1e3a8a] h-2 bg-gray-100 rounded-lg cursor-pointer" />
-                                <div className="flex justify-between text-[10px] font-bold text-gray-400 mt-3 uppercase tracking-tighter"><span>₪0</span><span>₪25,000</span></div>
+                            <div className="mb-8">
+                                <label className="block text-xs font-black text-gray-400 mb-2">מחיר עד: ₪{maxPrice}</label>
+                                <input type="range" min="0" max="25000" step="500" value={maxPrice} onChange={e=>setMaxPrice(Number(e.target.value))} className="w-full accent-[#1e3a8a]" />
                             </div>
-                            <div className="space-y-4">
-                                <label className="block text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">בחירת מותגים</label>
+                            <div className="space-y-2">
+                                <label className="block text-xs font-black text-gray-400 mb-3">מותגים</label>
                                 {availableBrands.map(b => (
-                                    <label key={b} className="flex items-center gap-4 cursor-pointer group">
-                                        <input type="checkbox" checked={selectedBrands.includes(b)} onChange={() => toggleBrand(b)} className="w-6 h-6 rounded-lg border-gray-300 text-[#1e3a8a] focus:ring-[#FFD814]" />
-                                        <span className={`text-sm font-bold transition-all ${selectedBrands.includes(b) ? 'text-[#1e3a8a] scale-105' : 'text-gray-500 group-hover:text-black'}`}>{b}</span>
+                                    <label key={b} className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={selectedBrands.includes(b)} onChange={() => toggleBrand(b)} className="w-4 h-4 rounded text-[#1e3a8a]" />
+                                        <span className={`text-xs font-bold ${selectedBrands.includes(b) ? 'text-[#1e3a8a]' : 'text-gray-500'}`}>{b}</span>
                                     </label>
                                 ))}
                             </div>
-                            <button onClick={() => {setSelectedBrands([]); setMaxPrice(25000); setSearchQuery("");}} className="w-full mt-12 text-xs font-black text-red-500 hover:underline text-center uppercase tracking-widest">Clear Filters</button>
+                            <button onClick={() => {setSelectedBrands([]); setMaxPrice(25000);}} className="w-full mt-6 text-[10px] font-black text-gray-400 hover:text-red-500">נקה מסננים</button>
                         </div>
 
-                        {/* Expert Article Widget */}
-                        <div className="bg-gradient-to-br from-[#1e3a8a] to-[#0f172a] p-10 rounded-[50px] text-white shadow-2xl border-b-[15px] border-[#FFD814] relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform"></div>
-                            <h4 className="text-2xl font-black text-[#FFD814] mb-6 leading-tight relative">המדריך המקצועי <br/> של SmartBuy</h4>
-                            <p className="text-xs leading-loose font-bold opacity-80 mb-10 italic relative">"האם ידעתם? מקרר עם מדחס אינוורטר לא רק שקט יותר, אלא גם חוסך עד 30% בצריכת החשמל הביתית. המומחים שלנו ממליצים לבדוק את..."</p>
-                            <button className="w-full bg-[#FFD814] text-[#1e3a8a] p-4 rounded-2xl text-xs font-black hover:bg-white transition-all uppercase tracking-widest shadow-xl relative z-10">למאמרי המומחים</button>
+                        {/* מאמרים מומלצים */}
+                        <div className="bg-gradient-to-br from-[#1e3a8a] to-[#152a63] p-6 rounded-3xl text-white shadow-md border-b-4 border-[#FFD814]">
+                            <h4 className="font-black text-[#FFD814] mb-3 text-sm">טיפ המומחים 💡</h4>
+                            <p className="text-[10px] leading-relaxed font-bold opacity-80 mb-4">מוצרי חשמל חכמים יכולים לחסוך עד 30% בצריכת החשמל הביתית. בדקו את דירוג האנרגיה לפני הרכישה!</p>
+                            <button className="w-full bg-white/10 p-2 rounded-xl text-[10px] font-black hover:bg-white/20 transition-all">לכל המאמרים</button>
                         </div>
                     </aside>
 
-                    <button onClick={()=>setIsFilterMenuOpen(!isFilterMenuOpen)} className="lg:hidden w-full bg-white p-4 rounded-3xl shadow-md font-black text-[#1e3a8a] mb-4 border border-blue-100 flex items-center justify-center gap-2">
-                        <i className="fa-solid fa-filter text-[#FFD814]"></i> {isFilterMenuOpen ? 'סגור תפריט סינון' : 'סינון ומותגים'}
+                    <button onClick={()=>setIsFilterMenuOpen(!isFilterMenuOpen)} className="lg:hidden w-full bg-white p-3 rounded-2xl shadow-sm font-black text-[#1e3a8a] text-sm border flex items-center justify-center gap-2">
+                        <i className="fa-solid fa-sliders text-[#FFD814]"></i> {isFilterMenuOpen ? 'סגור סינון' : 'פתיחת אפשרויות סינון'}
                     </button>
 
-                    {/* Main Products Area */}
-                    <main className="flex-grow space-y-24">
+                    {/* אזור המוצרים */}
+                    <main className="flex-grow space-y-16">
                         {filter === "All" && !searchQuery && selectedBrands.length === 0 ? (
-                            /* Home Page: Rows */
+                            /* דף הבית: שורות מכווצות (נכנסים יותר מוצרים) */
                             Object.keys(categorizedGroups).map(catKey => (
-                                <section key={catKey} className="animate-fade-in">
-                                    <div className="flex items-center gap-5 mb-10 border-b-4 border-gray-100 pb-8">
-                                        <div className="w-14 h-14 bg-[#1e3a8a] text-[#FFD814] rounded-2xl flex items-center justify-center shadow-2xl rotate-3"><i className="fa-solid fa-crown text-2xl"></i></div>
-                                        <div>
-                                            <h2 className="text-4xl font-black text-[#1e3a8a] leading-none mb-2 uppercase tracking-tighter">{categoryMap[catKey]} מומלצים</h2>
-                                            <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">SmartBuy Best Sellers</span>
-                                        </div>
-                                        <button onClick={()=>setFilter(catKey)} className="mr-auto text-sm font-black text-[#1e3a8a] bg-[#FFD814]/10 px-8 py-3 rounded-full hover:bg-[#1e3a8a] hover:text-white transition-all shadow-sm border border-[#1e3a8a]/10">צפה בהכל ←</button>
+                                <section key={catKey}>
+                                    <div className="flex items-center gap-3 mb-6 border-b-2 border-gray-100 pb-2">
+                                        <h2 className="text-xl font-black text-[#1e3a8a]">{categoryMap[catKey]}</h2>
+                                        <button onClick={()=>setFilter(catKey)} className="mr-auto text-[10px] font-black text-blue-500 hover:underline bg-blue-50 px-3 py-1 rounded-full">צפה בהכל</button>
                                     </div>
-                                    <div className="flex overflow-x-auto gap-10 pb-12 hide-scroll snap-x scroll-smooth px-2">
+                                    {/* Flex-shrink-0 כדי שהרוחב המינימלי יישמר בגלילה */}
+                                    <div className="flex overflow-x-auto gap-4 pb-6 hide-scroll snap-x">
                                         {categorizedGroups[catKey].map(p => (
-                                            <div key={p.id} className="min-w-[320px] md:min-w-[360px] snap-start bg-white p-10 rounded-[55px] shadow-lg border border-gray-100 relative group hover:shadow-[0_30px_60px_rgba(0,0,0,0.15)] transition-all duration-700 flex flex-col justify-between hover:-translate-y-3">
-                                                <div className="absolute top-10 right-10 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
-                                                    {brandLogos[p.brand] && <img src={brandLogos[p.brand]} className="h-5 w-auto object-contain grayscale group-hover:grayscale-0" alt="brand" />}
+                                            <div key={p.id} className="min-w-[200px] max-w-[200px] flex-shrink-0 snap-start bg-white p-4 rounded-3xl shadow-sm border relative group hover:shadow-lg transition-all flex flex-col justify-between">
+                                                <div className="absolute top-4 right-4 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
+                                                    {brandLogos[p.brand] && <img src={brandLogos[p.brand]} className="h-4 w-auto object-contain grayscale group-hover:grayscale-0" alt="brand" />}
                                                 </div>
-                                                <button onClick={()=>addToCompare(p)} className={`absolute top-10 left-10 w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all z-20 ${compareList.find(i=>i.id===p.id) ? 'bg-[#FFD814] text-[#1e3a8a]' : 'bg-gray-50 text-gray-400 hover:bg-[#1e3a8a] hover:text-white'}`}>
-                                                    <i className="fa-solid fa-code-compare text-xl"></i>
+                                                <button onClick={()=>addToCompare(p)} className="absolute top-4 left-4 w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-[#1e3a8a] hover:text-white transition-all z-20">
+                                                    <i className="fa-solid fa-code-compare text-[10px]"></i>
                                                 </button>
-                                                <div className="h-56 flex items-center justify-center mb-10 mt-8 cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                                                    <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-1000" alt={p.name} />
+                                                <div className="h-32 flex items-center justify-center mb-4 mt-6 cursor-pointer" onClick={() => setSelectedProduct(p)}>
+                                                    <img src={p.image} className="max-h-full object-contain group-hover:scale-105 transition-transform" alt={p.name} />
                                                 </div>
-                                                <h3 className="font-black text-gray-800 text-lg mb-6 h-12 line-clamp-2 leading-tight cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
-                                                <div className="flex items-center justify-between mb-10">
-                                                    <div className="flex flex-col"><span className="text-4xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span></div>
-                                                    <div className="bg-green-100 text-green-700 text-[10px] font-black px-4 py-2 rounded-xl border border-green-200 uppercase tracking-widest">In Stock</div>
+                                                {/* כוכבים בכרטיסיה הראשי */}
+                                                <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
+                                                <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <span className="text-xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
+                                                    <div className="bg-green-50 text-green-600 text-[9px] font-black px-2 py-1 rounded-md">במלאי</div>
                                                 </div>
-                                                <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-6 rounded-[25px] font-black hover:bg-[#f3ce12] transition-all shadow-xl active:scale-95 text-xl uppercase tracking-tighter">Add to Cart</button>
+                                                <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black hover:bg-[#f3ce12] transition-all text-xs">הוספה לסל</button>
                                             </div>
                                         ))}
                                     </div>
                                 </section>
                             ))
                         ) : (
-                            /* Category / Filter / Search View: Grid */
-                            <section className="animate-fade-in">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between mb-16 bg-white p-10 rounded-[50px] border-b-[10px] border-[#1e3a8a] shadow-xl">
-                                     <div>
-                                        <h2 className="text-4xl font-black text-[#1e3a8a] uppercase tracking-tighter">{filter === "All" ? "תוצאות חיפוש" : categoryMap[filter]}</h2>
-                                        <p className="text-gray-400 text-xs font-bold mt-2 tracking-[4px] uppercase opacity-60">SmartBuy Premium Inventory</p>
-                                     </div>
-                                     <span className="bg-[#FFD814] text-[#1e3a8a] px-8 py-3 rounded-full text-sm font-black shadow-lg mt-4 md:mt-0">{filtered.length} פריטים נמצאו</span>
+                            /* דפי קטגוריות: GRID */
+                            <section>
+                                <div className="flex items-center justify-between mb-8 bg-white p-4 rounded-2xl border shadow-sm">
+                                     <h2 className="text-xl font-black text-[#1e3a8a]">{filter === "All" ? "תוצאות חיפוש" : categoryMap[filter]}</h2>
+                                     <span className="bg-[#1e3a8a] text-white px-3 py-1 rounded-lg text-xs font-black">{filtered.length} פריטים</span>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-12">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                     {filtered.map(p => (
-                                        <div key={p.id} className="bg-white p-10 rounded-[60px] shadow-md border border-gray-100 relative group hover:shadow-2xl transition-all duration-700 flex flex-col justify-between hover:-translate-y-4">
-                                            <div className="absolute top-10 right-10 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
-                                                {brandLogos[p.brand] && <img src={brandLogos[p.brand]} className="h-5 w-auto object-contain grayscale group-hover:grayscale-0" alt="brand" />}
-                                            </div>
-                                            <button onClick={()=>addToCompare(p)} className={`absolute top-10 left-10 w-12 h-12 rounded-full flex items-center justify-center border shadow-sm transition-all z-20 ${compareList.find(i=>i.id===p.id) ? 'bg-[#FFD814] text-[#1e3a8a]' : 'bg-gray-50 text-gray-400 hover:bg-[#1e3a8a] hover:text-white'}`}>
-                                                <i className="fa-solid fa-code-compare text-lg"></i>
+                                        <div key={p.id} className="bg-white p-5 rounded-3xl shadow-sm border relative hover:shadow-lg transition-all flex flex-col justify-between">
+                                            <button onClick={()=>addToCompare(p)} className="absolute top-4 left-4 w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-[#1e3a8a] hover:text-white transition-all">
+                                                <i className="fa-solid fa-code-compare text-[10px]"></i>
                                             </button>
-                                            <div className="h-64 flex items-center justify-center mb-8 mt-6 cursor-pointer" onClick={() => setSelectedProduct(p)}>
-                                                <img src={p.image} className="max-h-full object-contain group-hover:scale-110 transition-transform duration-1000 shadow-2xl rounded-2xl" alt={p.name} />
+                                            <div className="h-32 flex items-center justify-center mb-4 mt-4 cursor-pointer" onClick={() => setSelectedProduct(p)}>
+                                                <img src={p.image} className="max-h-full object-contain hover:scale-105 transition-transform" alt={p.name} />
                                             </div>
-                                            <h3 className="font-black text-gray-800 text-base mb-8 h-10 line-clamp-2 text-center cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
-                                            <div className="text-5xl font-black text-[#1e3a8a] mb-12 text-center tracking-tighter">₪{p.sellingPrice}</div>
-                                            <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#1e3a8a] text-white py-6 rounded-[25px] font-black hover:bg-blue-800 transition-all shadow-2xl active:scale-95 uppercase text-lg tracking-widest">Secure Order</button>
+                                            <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
+                                            <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
+                                            <div className="text-2xl font-black text-[#1e3a8a] mb-4 text-center">₪{p.sellingPrice}</div>
+                                            <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black text-xs hover:bg-[#f3ce12] transition-all">הוספה לסל</button>
                                         </div>
                                     ))}
                                 </div>
-                                {filtered.length === 0 && (
-                                    <div className="text-center py-48 bg-white rounded-[70px] border-4 border-dashed border-gray-100 flex flex-col items-center">
-                                        <i className="fa-solid fa-magnifying-glass-chart text-[120px] text-gray-100 mb-10 animate-pulse"></i>
-                                        <p className="text-gray-400 font-black text-3xl mb-10 tracking-tighter">לא מצאנו מוצרים שתואמים למסננים שלכם...</p>
-                                        <button onClick={()=>{setFilter("All"); setSelectedBrands([]); setMaxPrice(25000); setSearchQuery("");}} className="bg-[#1e3a8a] text-white px-12 py-5 rounded-3xl font-black hover:scale-110 transition-all shadow-2xl text-xl">חזרה לכל המוצרים</button>
-                                    </div>
-                                )}
                             </section>
                         )}
                     </main>
                 </div>
 
-                {/* Footer */}
-                <footer className="bg-[#1e3a8a] text-white py-32 px-10 border-t-[16px] border-[#FFD814] mt-32 relative">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-24 relative z-10">
-                        <div className="space-y-10">
-                            <div className="text-7xl font-black italic text-[#FFD814] tracking-tighter">SMARTBUY</div>
-                            <p className="font-bold opacity-80 leading-loose text-lg">חנות מוצרי החשמל המובילה בישראל. אנחנו מבטיחים לכם את המחיר הטוב ביותר עם שירות VIP מנצח.</p>
+                {/* Footer קצר וקולע */}
+                <footer className="bg-[#1e3a8a] text-white py-16 px-6 border-t-8 border-[#FFD814] mt-20">
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
+                        <div>
+                            <div className="text-3xl font-black italic text-[#FFD814] mb-4">SMARTBUY</div>
+                            <p className="font-bold opacity-80 text-sm">חנות מוצרי החשמל המובילה בישראל. המחיר הטוב ביותר מובטח.</p>
                         </div>
                         <div>
-                            <h4 className="font-black text-2xl mb-12 border-b-8 border-[#FFD814] pb-4 inline-block tracking-tighter uppercase">שירות לקוחות</h4>
-                            <ul className="space-y-8 font-bold text-xl">
-                                <li className="flex items-center gap-5 hover:text-[#FFD814] transition-colors cursor-pointer"><i className="fa-solid fa-phone text-[#FFD814] text-3xl"></i> 054-4914204</li>
-                                <li className="flex items-center gap-5"><i className="fa-solid fa-envelope text-[#FFD814] text-3xl"></i> info@smartbuy.co.il</li>
+                            <h4 className="font-black text-lg mb-4 border-b-2 border-[#FFD814] pb-2 inline-block">שירות לקוחות</h4>
+                            <ul className="space-y-2 font-bold text-sm">
+                                <li><i className="fa-solid fa-phone text-[#FFD814] ml-2"></i> 054-4914204</li>
+                                <li><i className="fa-solid fa-envelope text-[#FFD814] ml-2"></i> info@smartbuy.co.il</li>
                             </ul>
                         </div>
-                        <div className="md:col-span-2 text-center md:text-left">
-                            <h4 className="font-black text-2xl mb-12 border-b-8 border-[#FFD814] pb-4 inline-block uppercase">Payment Methods</h4>
-                            <div className="flex gap-8 justify-center md:justify-end text-7xl mb-12 text-white/90">
+                        <div>
+                            <h4 className="font-black text-lg mb-4 border-b-2 border-[#FFD814] pb-2 inline-block">אמצעי תשלום וקישורים</h4>
+                            <div className="flex gap-4 text-3xl mb-4 text-white/80">
                                 <i className="fa-brands fa-google-pay"></i>
                                 <i className="fa-brands fa-apple-pay"></i>
                                 <i className="fa-brands fa-cc-visa"></i>
-                                <i className="fa-brands fa-cc-mastercard"></i>
                             </div>
-                            <p className="text-[12px] font-black opacity-40 uppercase tracking-[8px]">SSL SECURE DATA ENCRYPTION</p>
+                            <div className="text-xs text-gray-300 space-x-4 space-x-reverse">
+                                <a href="#">תקנון</a> • <a href="#">פרטיות</a> • <a href="#">משלוחים</a>
+                            </div>
                         </div>
                     </div>
                 </footer>
 
-                {/* Cart Drawer Pro */}
-                <div className={`fixed top-0 right-0 h-full w-80 md:w-[500px] bg-white shadow-[0_0_100px_rgba(0,0,0,0.5)] z-[500] transition-transform duration-1000 border-l-[15px] border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                    <div className="p-12 bg-[#1e3a8a] text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mt-16"></div>
-                        <div className="flex items-center gap-5 relative">
-                            <i className="fa-solid fa-basket-shopping text-5xl text-[#FFD814]"></i>
-                            <span className="font-black text-5xl uppercase tracking-tighter">הסל שלי</span>
+                {/* Cart Drawer - ללא טשטוש מסך מעצבן */}
+                <div className={`fixed top-0 right-0 h-full w-80 md:w-[400px] bg-white shadow-2xl z-[500] transition-transform duration-500 border-l-8 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="p-6 bg-[#1e3a8a] text-white flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <i className="fa-solid fa-cart-shopping text-2xl text-[#FFD814]"></i>
+                            <span className="font-black text-2xl">הסל שלי</span>
                         </div>
-                        <button onClick={()=>setIsCartOpen(false)} className="text-6xl hover:text-[#FFD814] font-bold transition-all hover:scale-125 rotate-45 relative">&times;</button>
+                        <button onClick={()=>setIsCartOpen(false)} className="text-2xl text-gray-300 hover:text-white transition-colors"><i className="fa-solid fa-xmark"></i></button>
                     </div>
                     
-                    <div className="p-8 overflow-y-auto h-[50vh] space-y-8 bg-gray-50 custom-scrollbar">
+                    <div className="p-4 overflow-y-auto h-[60vh] space-y-4 bg-gray-50">
                         {cart.length === 0 ? (
-                            <div className="text-center py-40 opacity-20 flex flex-col items-center">
-                                <i className="fa-solid fa-cart-arrow-down text-[150px] mb-10"></i>
-                                <p className="font-black text-3xl uppercase tracking-[5px]">הסל מחכה לך...</p>
-                            </div>
+                            <div className="text-center py-20 text-gray-400">הסל מחכה להתמלא...</div>
                         ) : (
                             cart.map((item, i) => (
-                                <div key={i} className="flex gap-8 bg-white p-8 rounded-[45px] border-4 border-gray-50 relative shadow-md hover:border-[#1e3a8a] transition-all group overflow-hidden">
-                                    <button onClick={() => setCart(cart.filter((_, idx)=>idx!==i))} className="absolute top-0 right-0 bg-red-500 text-white w-12 h-12 rounded-bl-[25px] flex items-center justify-center shadow-lg font-bold group-hover:scale-110 transition-transform">✕</button>
-                                    <img src={item.image} className="w-28 h-28 object-contain bg-gray-50 rounded-3xl p-4 group-hover:rotate-12 transition-transform" alt={item.name} />
-                                    <div className="flex flex-col justify-center flex-1 text-right">
-                                        <span className="text-sm font-black line-clamp-2 mb-3 text-gray-800 leading-tight">{item.name}</span>
-                                        <b className="text-3xl font-black text-[#1e3a8a] tracking-tighter">₪{item.sellingPrice}</b>
+                                <div key={i} className="flex gap-4 bg-white p-4 rounded-2xl border shadow-sm relative">
+                                    <button onClick={() => setCart(cart.filter((_, idx)=>idx!==i))} className="absolute top-2 right-2 text-red-500 hover:text-red-700 bg-red-50 w-6 h-6 rounded-full flex items-center justify-center"><i className="fa-solid fa-xmark text-xs"></i></button>
+                                    <img src={item.image} className="w-16 h-16 object-contain" alt={item.name} />
+                                    <div className="flex flex-col justify-center">
+                                        <span className="text-xs font-bold line-clamp-2 mb-1">{item.name}</span>
+                                        <b className="text-lg font-black text-[#1e3a8a]">₪{item.sellingPrice}</b>
                                     </div>
                                 </div>
                             ))
                         )}
                     </div>
 
-                    <div className="p-12 border-t-[10px] border-gray-50 bg-white absolute bottom-0 w-full shadow-[0_-30px_60px_rgba(0,0,0,0.15)]">
-                        <div className="flex gap-4 mb-10">
-                            {/* Input קופון מחובר לסטייט! */}
-                            <input type="text" placeholder="קוד קופון (נסה SMART10)" value={couponCode} onChange={e=>setCouponCode(e.target.value)} className="w-full border-4 p-5 rounded-[20px] outline-none focus:border-[#1e3a8a] font-black text-center uppercase tracking-[4px] bg-gray-50 text-xl" />
-                            {/* כפתור שמפעיל את פונקציית applyCoupon */}
-                            <button onClick={applyCoupon} className="bg-[#1e3a8a] text-white px-10 rounded-[20px] font-black hover:bg-blue-800 transition-all uppercase shadow-lg">Apply</button>
+                    <div className="p-6 border-t bg-white absolute bottom-0 w-full shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" placeholder="קופון (נסה SMART10)" value={couponCode} onChange={e=>setCouponCode(e.target.value)} className="w-full border p-3 rounded-xl outline-none text-xs font-bold bg-gray-50" />
+                            <button onClick={applyCoupon} className="bg-[#1e3a8a] text-white px-4 rounded-xl font-bold text-xs hover:bg-blue-800">הפעל קופון</button>
                         </div>
                         
-                        {discount > 0 && <div className="bg-green-100 text-green-700 text-xs font-black p-4 rounded-2xl mb-8 text-center border-2 border-green-200 animate-pulse">🎉 הנחת מועדון SmartBuy הופעלה (10% ירדו מהמחיר)!</div>}
+                        {discount > 0 && <div className="text-green-600 text-xs font-bold mb-4 text-center">הנחה הופעלה (10%)</div>}
                         
-                        <div className="flex justify-between items-center mb-10 px-4">
-                            <span className="font-black text-gray-400 uppercase text-sm tracking-[3px]">Total Amount</span>
-                            <span className="text-6xl font-black text-[#1e3a8a] tracking-tighter">₪{cartTotal}</span>
+                        <div className="flex justify-between items-center mb-6">
+                            <span className="font-bold text-gray-500 text-sm">סה"כ לתשלום:</span>
+                            <span className="text-3xl font-black text-[#1e3a8a]">₪{cartTotal}</span>
                         </div>
                         
-                        <button onClick={()=>{ setIsCartOpen(false); setIsCheckoutOpen(true); }} className="w-full bg-[#FFD814] text-[#1e3a8a] py-8 rounded-[35px] font-black text-3xl shadow-[0_20px_50px_rgba(230,195,18,0.4)] hover:scale-[1.03] active:scale-95 transition-all flex items-center justify-center gap-6 uppercase tracking-tighter border-b-[10px] border-[#e6c312]">
-                            Secure Checkout <i className="fa-solid fa-lock text-xl"></i>
+                        <button onClick={()=>{ setIsCartOpen(false); setIsCheckoutOpen(true); }} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-xl font-black text-lg shadow-md hover:bg-yellow-400 transition-all flex justify-center gap-2 items-center">
+                            מעבר לקופה מאובטחת <i className="fa-solid fa-lock text-xs"></i>
                         </button>
                     </div>
                 </div>
 
-                {isCartOpen && <div className="fixed inset-0 bg-black/70 z-[450] backdrop-blur-xl transition-opacity duration-500" onClick={() => setIsCartOpen(false)}></div>}
+                {/* רקע חצי שקוף (לא מטושטש מדי) לסל */}
+                {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[450] transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
             </div>
         </HelmetProvider>
     );
