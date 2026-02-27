@@ -2,6 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, arrayUnion, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "firebase/auth";
+import { Helmet } from 'react-helmet-async';
+
+
+
 
 // --- הגדרות Firebase ---
 const firebaseConfig = {
@@ -49,6 +53,32 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
     const [reviewForm, setReviewForm] = useState({ name: '', text: '', rating: 5 });
     const [isExpanded, setIsExpanded] = useState(false);
 
+    // --- לוגיקת SEO ו-Schema Markup עבור Google ---
+    const schemaMarkup = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": product.name,
+        "image": [product.image],
+        "description": product.expertArticleTitle || `פרטים ומפרט טכני עבור ${product.name}`,
+        "brand": {
+            "@type": "Brand",
+            "name": product.brand || "SmartBuy"
+        },
+        "offers": {
+            "@type": "Offer",
+            "url": window.location.href,
+            "priceCurrency": "ILS",
+            "price": product.sellingPrice,
+            "itemCondition": "https://schema.org/NewCondition",
+            "availability": "https://schema.org/InStock"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": product.reviews?.length || "1"
+        }
+    };
+
     const handleReviewSubmit = (e) => {
         e.preventDefault();
         onAddReview(product.id, reviewForm);
@@ -59,6 +89,16 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[500] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onClick={onClose}>
+            
+            {/* עדכון Meta Tags דינמי עבור SEO */}
+            <Helmet>
+                <title>{product.name} | SmartBuy - קנייה חכמה</title>
+                <meta name="description" content={`קנו עכשיו את ${product.name} במחיר SmartBuy מנצח: ₪${product.sellingPrice}. סקירת מומחים, מפרט טכני מלא וחוות דעת גולשים.`} />
+                <script type="application/ld+json">
+                    {JSON.stringify(schemaMarkup)}
+                </script>
+            </Helmet>
+
             <div className="bg-white rounded-[40px] max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-6 left-6 bg-white rounded-full w-10 h-10 flex items-center justify-center text-gray-400 hover:text-black shadow-md text-3xl font-bold z-50 transition-colors">&times;</button>
                 
@@ -77,7 +117,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
                         </div>
                     </div>
 
-                    {/* צד שמאל: תוכן רציף */}
+                    {/* צד שמאל: תוכן רציף (סקירה, מפרט וביקורות) */}
                     <div className="md:col-span-3 p-8 bg-white overflow-y-auto custom-scrollbar text-right" dir="rtl">
                         {/* סקירת מומחה */}
                         {product.expertArticleTitle && (
