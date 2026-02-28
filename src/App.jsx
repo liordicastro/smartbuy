@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, arrayUnion, addDoc, serverTimestamp, setDoc, deleteDoc } from "firebase/firestore";
-// הוספנו כאן את פונקציות המייל והסיסמה של פיירבייס!
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 
@@ -579,7 +578,6 @@ export default function App() {
                 {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={handleAddReview} brandLogo={brandLogos[selectedProduct.brand]} />}
                 {isCompareOpen && <ComparisonModal list={compareList} onClose={()=>setIsCompareOpen(false)} onRemove={(id)=>setCompareList(compareList.filter(i=>i.id!==id))} />}
                 {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
-                {/* כאן עברנו לפונקציונליות ההרשמה החדשה! */}
                 {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} />}
 
                 {/* Header */}
@@ -663,7 +661,7 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* אזור מוצרים */}
+                {/* אזור מוצרים (נגלל אופקית) */}
                 <main className="max-w-7xl mx-auto p-4 md:p-8 pt-0 space-y-16">
                     {filter === "All" && !searchQuery && selectedBrands.length === 0 ? (
                         Object.keys(categorizedGroups).map(catKey => (
@@ -687,10 +685,35 @@ export default function App() {
                                             </div>
                                             <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
                                             <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <span className="text-xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
-                                                <div className="bg-green-50 text-green-600 text-[9px] font-black px-2 py-1 rounded-md">במלאי</div>
+                                            
+                                            {/* --- קוביית מחירי המתחרים (דף הבית) --- */}
+                                            <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right">
+                                                <div className="text-[10px] font-black text-gray-400 mb-2 border-b pb-1">השוואת מחירי שוק:</div>
+                                                <div className="flex justify-between items-center text-[10px] mb-1">
+                                                    <span className="text-gray-600">מחסני חשמל:</span>
+                                                    <span className="font-bold line-through text-red-400">
+                                                        {p.competitorPrices?.machsanei_chashmal ? `₪${p.competitorPrices.machsanei_chashmal}` : 'לא זמין'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] mb-1">
+                                                    <span className="text-gray-600">א.ל.מ:</span>
+                                                    <span className="font-bold line-through text-red-400">
+                                                        {p.competitorPrices?.alm ? `₪${p.competitorPrices.alm}` : 'לא זמין'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] mb-3">
+                                                    <span className="text-gray-600">ליאור חשמל:</span>
+                                                    <span className="font-bold line-through text-red-400">
+                                                        {p.competitorPrices?.lior_electric ? `₪${p.competitorPrices.lior_electric}` : 'לא זמין'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between mt-2 pt-2 border-t-2 border-dashed border-gray-200">
+                                                    <span className="bg-[#FFD814] text-[#1e3a8a] text-[10px] px-2 py-1 rounded-md font-black">המחיר שלנו</span>
+                                                    <span className="text-2xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
+                                                </div>
                                             </div>
+                                            {/* ------------------------------------ */}
+
                                             <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black hover:bg-[#f3ce12] transition-all text-xs">הוספה לסל</button>
                                         </div>
                                     ))}
@@ -714,7 +737,35 @@ export default function App() {
                                         </div>
                                         <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
                                         <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
-                                        <div className="text-2xl font-black text-[#1e3a8a] mb-4 text-center">₪{p.sellingPrice}</div>
+                                        
+                                        {/* --- קוביית מחירי המתחרים (דף תוצאות) --- */}
+                                        <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right">
+                                            <div className="text-[10px] font-black text-gray-400 mb-2 border-b pb-1">השוואת מחירי שוק:</div>
+                                            <div className="flex justify-between items-center text-[10px] mb-1">
+                                                <span className="text-gray-600">מחסני חשמל:</span>
+                                                <span className="font-bold line-through text-red-400">
+                                                    {p.competitorPrices?.machsanei_chashmal ? `₪${p.competitorPrices.machsanei_chashmal}` : 'לא זמין'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[10px] mb-1">
+                                                <span className="text-gray-600">א.ל.מ:</span>
+                                                <span className="font-bold line-through text-red-400">
+                                                    {p.competitorPrices?.alm ? `₪${p.competitorPrices.alm}` : 'לא זמין'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[10px] mb-3">
+                                                <span className="text-gray-600">ליאור חשמל:</span>
+                                                <span className="font-bold line-through text-red-400">
+                                                    {p.competitorPrices?.lior_electric ? `₪${p.competitorPrices.lior_electric}` : 'לא זמין'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-2 pt-2 border-t-2 border-dashed border-gray-200">
+                                                <span className="bg-[#FFD814] text-[#1e3a8a] text-[10px] px-2 py-1 rounded-md font-black">המחיר שלנו</span>
+                                                <span className="text-2xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
+                                            </div>
+                                        </div>
+                                        {/* ------------------------------------ */}
+
                                         <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black text-xs hover:bg-[#f3ce12] transition-all">הוספה לסל</button>
                                     </div>
                                 ))}
