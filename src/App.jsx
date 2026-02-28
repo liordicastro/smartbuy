@@ -17,25 +17,21 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// הגדרת אימייל מנהל (שנה למייל האמיתי שלך של Google איתו תתחבר)
+// המייל שאיתו אתה מתחבר כדי לראות את כפתור הניהול
 const ADMIN_EMAIL = "liordicastro@gmail.com"; 
 
 // ==========================================
-// פאנל ניהול (Backoffice)
+// 1. פאנל ניהול מוסתר (Backoffice)
 // ==========================================
 const AdminPanel = ({ onClose, products, coupons, users }) => {
     const [activeTab, setActiveTab] = useState('products');
     const [isUpdating, setIsUpdating] = useState(false);
-    
-    // סטייט ליצירת קופון חדש
     const [newCoupon, setNewCoupon] = useState({ code: '', discount: 10 });
 
-    // עדכון מחיר/סטטוס למוצר בודד
     const handleUpdateProduct = async (id, field, value) => {
         await updateDoc(doc(db, "products", id), { [field]: value });
     };
 
-    // יצירת קופון
     const handleAddCoupon = async (e) => {
         e.preventDefault();
         await setDoc(doc(db, "coupons", newCoupon.code.toUpperCase()), {
@@ -48,23 +44,20 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
         alert("הקופון נוצר בהצלחה!");
     };
 
-    // מחיקת קופון
     const handleDeleteCoupon = async (code) => {
         await deleteDoc(doc(db, "coupons", code));
     };
 
-    // סימולציית הפעלת סקריפט משיכה (Web Scraper)
     const handleRunScraper = () => {
         setIsUpdating(true);
         setTimeout(() => {
             setIsUpdating(false);
-            alert("הסקריפט סיים לרוץ! נתונים ומחירים עודכנו בהצלחה.");
+            alert("הסקריפט סיים לרוץ! מחירים ומלאי עודכנו.");
         }, 3000);
     };
 
     return (
         <div className="fixed inset-0 bg-gray-900 z-[1000] flex text-right font-assistant" dir="rtl">
-            {/* Sidebar Admin */}
             <div className="w-64 bg-gray-950 text-white p-6 flex flex-col shadow-2xl">
                 <div className="text-2xl font-black text-[#FFD814] mb-10"><i className="fa-solid fa-user-tie"></i> SmartBuy Admin</div>
                 <div className="space-y-2 flex-grow">
@@ -73,10 +66,8 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                     <button onClick={()=>setActiveTab('users')} className={`w-full text-right p-3 rounded-xl font-bold transition-all ${activeTab==='users' ? 'bg-[#FFD814] text-gray-900' : 'hover:bg-gray-800'}`}><i className="fa-solid fa-users ml-2"></i> חברי מועדון</button>
                     <button onClick={()=>setActiveTab('system')} className={`w-full text-right p-3 rounded-xl font-bold transition-all ${activeTab==='system' ? 'bg-[#FFD814] text-gray-900' : 'hover:bg-gray-800'}`}><i className="fa-solid fa-robot ml-2"></i> סקריפט רובוט</button>
                 </div>
-                <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mt-auto flex justify-center gap-2"><i className="fa-solid fa-arrow-right-from-bracket"></i> חזרה לחנות</button>
+                <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold mt-auto"><i className="fa-solid fa-arrow-right-from-bracket ml-2"></i> חזרה לחנות</button>
             </div>
-
-            {/* Content Admin */}
             <div className="flex-grow bg-gray-100 p-10 overflow-y-auto">
                 {activeTab === 'products' && (
                     <div>
@@ -88,8 +79,8 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                                         <th className="p-4">תמונה</th>
                                         <th className="p-4">שם המוצר</th>
                                         <th className="p-4">מחיר עכשיו (₪)</th>
-                                        <th className="p-4 text-center">בסליידר הראשי?</th>
-                                        <th className="p-4 text-center">מומלץ קטגוריה?</th>
+                                        <th className="p-4 text-center">בסליידר?</th>
+                                        <th className="p-4 text-center">מומלץ?</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -97,15 +88,9 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                                         <tr key={p.id} className="border-b hover:bg-gray-50 transition-colors">
                                             <td className="p-4"><img src={p.image} className="w-12 h-12 object-contain rounded" alt="img"/></td>
                                             <td className="p-4 font-bold text-gray-700">{p.name}</td>
-                                            <td className="p-4">
-                                                <input type="number" defaultValue={p.sellingPrice} onBlur={(e) => handleUpdateProduct(p.id, 'sellingPrice', Number(e.target.value))} className="border-2 border-gray-200 p-2 rounded-lg w-24 text-center focus:border-[#1e3a8a] outline-none font-bold" />
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <input type="checkbox" checked={p.isHero || false} onChange={(e) => handleUpdateProduct(p.id, 'isHero', e.target.checked)} className="w-5 h-5 cursor-pointer accent-[#1e3a8a]" />
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <input type="checkbox" checked={p.isRecommended || false} onChange={(e) => handleUpdateProduct(p.id, 'isRecommended', e.target.checked)} className="w-5 h-5 cursor-pointer accent-[#FFD814]" />
-                                            </td>
+                                            <td className="p-4"><input type="number" defaultValue={p.sellingPrice} onBlur={(e) => handleUpdateProduct(p.id, 'sellingPrice', Number(e.target.value))} className="border-2 p-2 rounded-lg w-24 text-center font-bold" /></td>
+                                            <td className="p-4 text-center"><input type="checkbox" checked={p.isHero || false} onChange={(e) => handleUpdateProduct(p.id, 'isHero', e.target.checked)} className="w-5 h-5 accent-[#1e3a8a]" /></td>
+                                            <td className="p-4 text-center"><input type="checkbox" checked={p.isRecommended || false} onChange={(e) => handleUpdateProduct(p.id, 'isRecommended', e.target.checked)} className="w-5 h-5 accent-[#FFD814]" /></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -113,7 +98,6 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                         </div>
                     </div>
                 )}
-
                 {activeTab === 'coupons' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div>
@@ -121,63 +105,43 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                             <div className="space-y-4">
                                 {coupons.map(c => (
                                     <div key={c.code} className="bg-white p-5 rounded-2xl shadow-sm border flex justify-between items-center">
-                                        <div>
-                                            <div className="text-xl font-black text-[#1e3a8a] uppercase">{c.code}</div>
-                                            <div className="text-sm text-gray-500 font-bold">הנחה: {c.discount * 100}%</div>
-                                        </div>
-                                        <button onClick={()=>handleDeleteCoupon(c.code)} className="text-red-500 hover:bg-red-50 p-3 rounded-full transition-colors"><i className="fa-solid fa-trash"></i></button>
+                                        <div><div className="text-xl font-black text-[#1e3a8a]">{c.code}</div><div className="text-sm text-gray-500 font-bold">הנחה: {c.discount * 100}%</div></div>
+                                        <button onClick={()=>handleDeleteCoupon(c.code)} className="text-red-500 hover:bg-red-50 p-3 rounded-full"><i className="fa-solid fa-trash"></i></button>
                                     </div>
                                 ))}
-                                {coupons.length === 0 && <p className="text-gray-400 font-bold">אין קופונים פעילים.</p>}
                             </div>
                         </div>
                         <div>
                             <h2 className="text-3xl font-black text-gray-800 mb-8">יצירת קופון חדש</h2>
                             <form onSubmit={handleAddCoupon} className="bg-white p-6 rounded-2xl shadow-sm border space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-2">קוד קופון (באנגלית/מספרים)</label>
-                                    <input required placeholder="למשל: VIP20" value={newCoupon.code} onChange={e=>setNewCoupon({...newCoupon, code: e.target.value})} className="w-full border-2 p-3 rounded-xl uppercase font-bold outline-none focus:border-[#1e3a8a]" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-2">אחוז הנחה (%)</label>
-                                    <input required type="number" min="1" max="99" value={newCoupon.discount} onChange={e=>setNewCoupon({...newCoupon, discount: e.target.value})} className="w-full border-2 p-3 rounded-xl font-bold outline-none focus:border-[#1e3a8a]" />
-                                </div>
-                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-black hover:bg-blue-800">צור קופון</button>
+                                <input required placeholder="קוד (למשל VIP20)" value={newCoupon.code} onChange={e=>setNewCoupon({...newCoupon, code: e.target.value})} className="w-full border-2 p-3 rounded-xl uppercase font-bold" />
+                                <input required type="number" min="1" max="99" value={newCoupon.discount} onChange={e=>setNewCoupon({...newCoupon, discount: e.target.value})} className="w-full border-2 p-3 rounded-xl font-bold" placeholder="אחוז הנחה" />
+                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-black">צור קופון</button>
                             </form>
                         </div>
                     </div>
                 )}
-
                 {activeTab === 'users' && (
                     <div>
                         <h2 className="text-3xl font-black text-gray-800 mb-8">חברי מועדון רשומים</h2>
-                        <div className="bg-white rounded-2xl shadow-sm border p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {users.map(u => (
-                                    <div key={u.id} className="border p-4 rounded-xl flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-blue-100 text-[#1e3a8a] rounded-full flex items-center justify-center font-black text-xl">{u.name?.charAt(0) || 'U'}</div>
-                                        <div>
-                                            <div className="font-bold text-gray-800">{u.name}</div>
-                                            <div className="text-xs text-gray-500">{u.email}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="bg-white rounded-2xl shadow-sm border p-6 grid grid-cols-3 gap-4">
+                            {users.map(u => (
+                                <div key={u.id} className="border p-4 rounded-xl flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-100 text-[#1e3a8a] rounded-full flex items-center justify-center font-black text-xl">{u.name?.charAt(0) || 'U'}</div>
+                                    <div><div className="font-bold">{u.name}</div><div className="text-xs text-gray-500">{u.email}</div></div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
-
                 {activeTab === 'system' && (
-                    <div>
-                        <h2 className="text-3xl font-black text-gray-800 mb-8">מערכת סריקה ועדכון רובוט</h2>
-                        <div className="bg-white rounded-2xl shadow-sm border p-10 text-center max-w-2xl mx-auto">
-                            <i className="fa-solid fa-robot text-7xl text-gray-200 mb-6"></i>
-                            <h3 className="text-xl font-black text-gray-800 mb-4">עדכון מחירים מלאי ומפרטים</h3>
-                            <p className="text-gray-500 mb-8 text-sm leading-relaxed">לחיצה על הכפתור תפעיל את הסקריפט (Puppeteer) שירוץ על חנויות המתחרים ויעדכן את בסיס הנתונים שלכם למחיר הנמוך ביותר בשוק באופן אוטומטי.</p>
-                            <button onClick={handleRunScraper} disabled={isUpdating} className={`w-full py-4 rounded-2xl font-black text-xl flex justify-center items-center gap-3 text-[#1e3a8a] transition-all ${isUpdating ? 'bg-gray-200 cursor-not-allowed' : 'bg-[#FFD814] shadow-lg hover:scale-105'}`}>
-                                {isUpdating ? <><i className="fa-solid fa-circle-notch fa-spin"></i> הסקריפט רץ ברקע...</> : <><i className="fa-solid fa-bolt"></i> הפעל בוט סריקה כעת</>}
-                            </button>
-                        </div>
+                    <div className="bg-white rounded-2xl shadow-sm border p-10 text-center max-w-2xl mx-auto mt-10">
+                        <i className="fa-solid fa-robot text-7xl text-gray-200 mb-6"></i>
+                        <h3 className="text-xl font-black text-gray-800 mb-4">עדכון מחירים מלאי ומפרטים</h3>
+                        <p className="text-gray-500 mb-8 text-sm leading-relaxed">הפעלת הסקריפט (Puppeteer) תריץ בוט על חנויות המתחרים ותעדכן מחירים אוטומטית.</p>
+                        <button onClick={handleRunScraper} disabled={isUpdating} className={`w-full py-4 rounded-2xl font-black text-xl flex justify-center items-center gap-3 text-[#1e3a8a] transition-all ${isUpdating ? 'bg-gray-200' : 'bg-[#FFD814] shadow-lg hover:scale-105'}`}>
+                            {isUpdating ? <><i className="fa-solid fa-circle-notch fa-spin"></i> מעדכן נתונים...</> : <><i className="fa-solid fa-bolt"></i> הפעל בוט סריקה</>}
+                        </button>
                     </div>
                 )}
             </div>
@@ -185,14 +149,43 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
     );
 };
 
-// --- שאר הרכיבים הסטנדרטיים (מודאלים, השוואה וכו') ---
+// ==========================================
+// 2. מודאל הרשמה למועדון 
+// ==========================================
+const AuthModal = ({ onClose, onGoogleLogin }) => (
+    <div className="fixed inset-0 bg-black/60 z-[800] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-white rounded-[35px] w-full max-w-md p-8 relative text-center shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
+            <button onClick={onClose} className="absolute top-5 left-5 text-gray-400 hover:text-black text-2xl font-bold"><i className="fa-solid fa-xmark"></i></button>
+            <div className="text-6xl mb-4 text-[#FFD814]">👑</div>
+            <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">מועדון SmartBuy</h2>
+            <p className="text-gray-500 mb-8 font-bold text-sm">התחברו כדי לקבל הטבות VIP, הנחות אישיות ומעקב הזמנות.</p>
+            <div className="space-y-3">
+                <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-brands fa-google text-red-500 text-xl"></i> התחברות עם חשבון Google
+                </button>
+                <button onClick={()=>alert('התחברות דרך אפל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-brands fa-apple text-xl text-black"></i> התחברות עם Apple ID
+                </button>
+                <button onClick={()=>alert('התחברות במייל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-regular fa-envelope text-xl text-blue-500"></i> התחברות עם אימייל
+                </button>
+                <button onClick={()=>alert('התחברות ב-SMS תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                    <i className="fa-solid fa-mobile-screen text-xl text-green-500"></i> קוד חד פעמי (SMS)
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+// ==========================================
+// 3. מודאל השוואת מוצרים
+// ==========================================
 const ComparisonModal = ({ list, onClose, onRemove }) => {
     const getRecommendation = () => {
         if (list.length < 2) return "הוסיפו לפחות עוד מוצר אחד כדי לקבל השוואה והמלצה מדויקת.";
         const bestValue = list.reduce((prev, curr) => (curr.sellingPrice < prev.sellingPrice ? curr : prev));
-        return `לאחר שקלול הנתונים, הדגם ${bestValue.name} מציע את התמורה הטובה ביותר למחיר בקטגוריה זו. מדובר בבחירה מצוינת!`;
+        return `לאחר שקלול הנתונים, הדגם ${bestValue.name} מציע את התמורה הטובה ביותר למחיר בקטגוריה זו. בחירה מצוינת!`;
     };
-
     return (
         <div className="fixed inset-0 bg-black/80 z-[700] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
             <div className="bg-white rounded-[40px] max-w-6xl w-full p-8 relative overflow-hidden flex flex-col shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
@@ -201,23 +194,24 @@ const ComparisonModal = ({ list, onClose, onRemove }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-y-auto max-h-[50vh] px-2 mb-6" dir="rtl">
                     {list.map(p => (
                         <div key={p.id} className="border-2 border-gray-100 rounded-[30px] p-6 bg-gray-50 flex flex-col relative shadow-sm">
-                            <button onClick={()=>onRemove(p.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg hover:scale-110 transition-transform font-bold"><i className="fa-solid fa-xmark text-sm"></i></button>
+                            <button onClick={()=>onRemove(p.id)} className="absolute -top-2 -right-2 bg-red-500 text-white w-8 h-8 rounded-full shadow-lg hover:scale-110 font-bold"><i className="fa-solid fa-xmark text-sm"></i></button>
                             <img src={p.image} className="h-32 object-contain mb-4 bg-white rounded-2xl p-2 shadow-sm" alt={p.name} />
                             <h4 className="font-black text-[#1e3a8a] text-sm mb-4 h-10 line-clamp-2">{p.name}</h4>
                             <div className="space-y-3 text-xs font-bold">
-                                <div className="flex justify-between bg-white p-2 rounded-xl shadow-sm text-[#1e3a8a]"><span>מחיר:</span> <span className="text-base">₪{p.sellingPrice}</span></div>
-                                <div className="flex justify-between bg-white p-2 rounded-xl shadow-sm text-gray-600"><span>מותג:</span> <span>{p.brand || 'כללי'}</span></div>
+                                <div className="flex justify-between bg-white p-2 rounded-xl text-[#1e3a8a]"><span>מחיר:</span> <span className="text-base">₪{p.sellingPrice}</span></div>
+                                <div className="flex justify-between bg-white p-2 rounded-xl text-gray-600"><span>מותג:</span> <span>{p.brand || 'כללי'}</span></div>
                                 <div className="flex flex-col gap-1 bg-white p-3 rounded-xl shadow-sm">
-                                    <span className="text-gray-400 uppercase tracking-widest text-[10px]">מפרט חלקי</span>
+                                    <span className="text-gray-400 uppercase text-[10px]">מפרט חלקי</span>
                                     <div className="text-gray-700 leading-relaxed max-h-24 overflow-y-auto custom-scrollbar">
                                         {p.specs?.dimensions && <p>• מידות: {p.specs.dimensions}</p>}
-                                        {p.specs?.energy_rating && <p>• דירוג אנרגטי: {p.specs.energy_rating}</p>}
+                                        {p.specs?.energy_rating && <p>• אנרגיה: {p.specs.energy_rating}</p>}
                                         {p.specs?.key_features?.map((f, i) => <p key={i}>• {f}</p>)}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ))}
+                    {list.length === 0 && <div className="text-center py-10 font-bold text-gray-400 col-span-full">אין מוצרים להשוואה</div>}
                 </div>
                 {list.length > 0 && (
                     <div className="bg-gradient-to-r from-blue-50 to-[#FFD814]/20 p-6 rounded-3xl border-2 border-[#FFD814] shadow-inner text-right relative overflow-hidden">
@@ -231,12 +225,32 @@ const ComparisonModal = ({ list, onClose, onRemove }) => {
     );
 };
 
+// ==========================================
+// 4. מודאל מוצר 
+// ==========================================
 const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo }) => {
     const [reviewForm, setReviewForm] = useState({ name: '', text: '', rating: 5 });
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const schemaMarkup = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": product.name,
+        "image": [product.image],
+        "description": product.expertArticleTitle || product.name,
+        "brand": { "@type": "Brand", "name": product.brand || "SmartBuy" },
+        "offers": { "@type": "Offer", "priceCurrency": "ILS", "price": product.sellingPrice, "availability": "https://schema.org/InStock" }
+    };
+
+    const handleReviewSubmit = (e) => {
+        e.preventDefault();
+        onAddReview(product.id, reviewForm);
+        setReviewForm({ name: '', text: '', rating: 5 });
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 z-[600] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm" onClick={onClose}>
-            <Helmet><title>{product.name} | SmartBuy</title></Helmet>
+            <Helmet><title>{product.name} | SmartBuy</title><script type="application/ld+json">{JSON.stringify(schemaMarkup)}</script></Helmet>
             <div className="bg-white rounded-[40px] max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col relative shadow-2xl border-4 border-[#1e3a8a]" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 left-4 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-600 shadow-sm text-xl font-bold z-50 transition-all"><i className="fa-solid fa-xmark"></i></button>
                 <div className="grid grid-cols-1 md:grid-cols-5 h-full overflow-hidden text-right" dir="rtl">
@@ -255,7 +269,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
                     </div>
                     <div className="md:col-span-3 p-8 bg-white overflow-y-auto custom-scrollbar">
                         <section className="mb-10">
-                            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-3 py-1.5 rounded-xl font-black text-xs mb-3 border border-blue-100"><i className="fa-solid fa-award text-[#FFD814]"></i> סקירת מומחי SmartBuy</div>
+                            <div className="inline-flex items-center gap-2 bg-blue-50 text-[#1e3a8a] px-3 py-1.5 rounded-xl font-black text-xs mb-3"><i className="fa-solid fa-award text-[#FFD814]"></i> סקירת מומחי SmartBuy</div>
                             <h3 className="text-2xl font-black text-gray-900 mb-4">{product.expertArticleTitle || 'פרטי מוצר מלאים'}</h3>
                             <div className={`relative overflow-hidden transition-all duration-700 ${isExpanded ? 'max-h-[3000px]' : 'max-h-32'}`}>
                                 <p className="text-gray-600 leading-relaxed text-sm font-medium whitespace-pre-wrap">{product.expertArticleBody}</p>
@@ -270,6 +284,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
                                     {product.specs.dimensions && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm">מידות: {product.specs.dimensions}</div>}
                                     {product.specs.color && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm">צבע: {product.specs.color}</div>}
                                     {product.specs.energy_rating && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm">אנרגיה: {product.specs.energy_rating}</div>}
+                                    {product.specs.warranty && <div className="bg-white p-3 rounded-xl border font-bold shadow-sm">אחריות: {product.specs.warranty}</div>}
                                 </div>
                             </section>
                         )}
@@ -280,12 +295,13 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
     );
 };
 
+// --- 5. קופה, שפות וסליידר ---
 const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
     const [formData, setFormData] = useState({ name: '', phone: '' });
     const handleSubmit = async (e) => {
         e.preventDefault();
         await addDoc(collection(db, "orders"), { customer: formData, items: cart, totalAmount: total, status: 'חדש', createdAt: serverTimestamp() });
-        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה ב-SmartBuy!*%0Aשם: ${formData.name}%0Aסה"כ לתשלום: ₪${total}`, '_blank');
+        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה ב-SmartBuy!*%0Aשם: ${formData.name}%0Aסה"כ: ₪${total}`, '_blank');
         onClearCart(); onClose();
     };
     return (
@@ -331,7 +347,6 @@ const LanguageSwitcher = () => {
 
 const HeroSlider = ({ products }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
-    // סליידר דינמי: מציג קודם כל מוצרים שסומנו ב-Backoffice כ-Hero
     const heroList = useMemo(() => {
         const marked = products.filter(p => p.isHero);
         return marked.length > 0 ? marked : products.slice(0, 5);
@@ -356,6 +371,9 @@ const HeroSlider = ({ products }) => {
     );
 };
 
+// ==========================================
+// אפליקציה ראשית - SmartBuy
+// ==========================================
 export default function App() {
     const [products, setProducts] = useState([]);
     const [coupons, setCoupons] = useState([]);
@@ -377,7 +395,7 @@ export default function App() {
     const [couponCode, setCouponCode] = useState("");
     const [discount, setDiscount] = useState(0);
 
-    // טעינת נתונים: מוצרים, קופונים, ומשתמשים (עבור ה-Admin)
+    // טעינת נתונים (מוצרים, קופונים, משתמשים)
     useEffect(() => {
         const unsubP = onSnapshot(collection(db, "products"), s => setProducts(s.docs.map(d => ({id: d.id, ...d.data()}))));
         const unsubC = onSnapshot(collection(db, "coupons"), s => setCoupons(s.docs.map(d => d.data())));
@@ -387,18 +405,23 @@ export default function App() {
         return () => { unsubP(); unsubC(); unsubU(); };
     }, []);
 
-    // התחברות ושמירת נתוני משתמש במסד כדי לנהל אותו ב-Backoffice
+    // פונקציית התחברות (מעודכנת! שומרת במסד וסוגרת את החלון)
     const handleGoogleLogin = async () => {
         try {
-            const result = await signInWithPopup(auth, new GoogleAuthProvider());
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            // שמירת נתוני המשתמש למסד כדי שיופיעו באדמין
             await setDoc(doc(db, "users", result.user.uid), {
                 name: result.user.displayName,
                 email: result.user.email,
                 photo: result.user.photoURL,
                 lastLogin: serverTimestamp()
             }, { merge: true });
-            setIsAuthModalOpen(false);
-        } catch (error) { console.error(error); }
+            setIsAuthModalOpen(false); // סגירת המודאל
+        } catch (error) { 
+            console.error(error); 
+            alert("ההתחברות בוטלה או נכשלה.");
+        }
     };
 
     const isAdmin = user && user.email === ADMIN_EMAIL;
@@ -430,13 +453,11 @@ export default function App() {
         });
     }, [products, filter, searchQuery, maxPrice, selectedBrands]);
 
-    // דינמי: מציג קודם כל מוצרים שסומנו ב-Admin כ"מומלצים", ואז ממלא שורות נגללות
     const categorizedGroups = useMemo(() => {
         const groups = {};
         Object.keys(categoryMap).forEach(key => {
             if (key === "All") return;
             const catProducts = products.filter(p => p.category === key);
-            // מיון כך שמומלצים יופיעו ראשונים
             catProducts.sort((a, b) => (b.isRecommended ? 1 : 0) - (a.isRecommended ? 1 : 0));
             if (catProducts.length > 0) groups[key] = catProducts;
         });
@@ -450,16 +471,23 @@ export default function App() {
 
     const cartTotal = Math.round(cart.reduce((sum, i) => sum + i.sellingPrice, 0) * (1 - discount));
     
-    // קופונים דינמיים מתוך מסד הנתונים של ה-Admin
     const applyCoupon = () => {
         const validCoupon = coupons.find(c => c.code === couponCode.toUpperCase() && c.active);
         if (validCoupon) {
             setDiscount(validCoupon.discount);
-            alert(`קופון ${validCoupon.code} הופעל! זכית ב-${validCoupon.discount * 100}% הנחה`);
+            alert(`קופון ${validCoupon.code} הופעל בהצלחה!`);
+        } else if (couponCode.toUpperCase() === "SMART10") {
+            setDiscount(0.1);
+            alert("קופון SMART10 הופעל (10% הנחה!)");
         } else {
             setDiscount(0);
             alert("קוד קופון לא חוקי או שפג תוקפו.");
         }
+    };
+
+    const handleAddReview = async (pid, rev) => {
+        await updateDoc(doc(db, "products", pid), { reviews: arrayUnion({ ...rev, date: new Date().toISOString() }) });
+        alert("הביקורת נוספה בהצלחה!");
     };
 
     const toggleBrand = (brand) => setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
@@ -472,7 +500,7 @@ export default function App() {
                 {isAdminOpen && isAdmin && <AdminPanel onClose={()=>setIsAdminOpen(false)} products={products} coupons={coupons} users={users} />}
 
                 {/* Modals פתוחים */}
-                {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={(pid, rev) => updateDoc(doc(db, "products", pid), { reviews: arrayUnion({ ...rev, date: new Date().toISOString() }) })} brandLogo={brandLogos[selectedProduct.brand]} />}
+                {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={handleAddReview} brandLogo={brandLogos[selectedProduct.brand]} />}
                 {isCompareOpen && <ComparisonModal list={compareList} onClose={()=>setIsCompareOpen(false)} onRemove={(id)=>setCompareList(compareList.filter(i=>i.id!==id))} />}
                 {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
                 {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={handleGoogleLogin} />}
@@ -559,7 +587,7 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* אזור מוצרים */}
+                {/* אזור מוצרים (נגלל אופקית) */}
                 <main className="max-w-7xl mx-auto p-4 md:p-8 pt-0 space-y-16">
                     {filter === "All" && !searchQuery && selectedBrands.length === 0 ? (
                         Object.keys(categorizedGroups).map(catKey => (
@@ -619,7 +647,7 @@ export default function App() {
                     )}
                 </main>
 
-                {/* Footer קצר וקולע */}
+                {/* Footer */}
                 <footer className="bg-[#1e3a8a] text-white py-16 px-6 border-t-8 border-[#FFD814] mt-20">
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
                         <div>
@@ -644,7 +672,7 @@ export default function App() {
                     </div>
                 </footer>
 
-                {/* Cart Drawer */}
+                {/* עגלת קניות ללא טשטוש מסך */}
                 <div className={`fixed top-0 right-0 h-full w-80 md:w-[400px] bg-white shadow-2xl z-[500] transition-transform duration-500 border-l-8 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                     <div className="p-6 bg-[#1e3a8a] text-white flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -690,6 +718,7 @@ export default function App() {
                     </div>
                 </div>
 
+                {/* צל עדין לסל - ללא טשטוש (Blur) */}
                 {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[450] transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
             </div>
         </HelmetProvider>
