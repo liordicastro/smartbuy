@@ -70,3 +70,5 @@ node_modules/
 service-account.json
 reviews_bot.cjs
 article_bot.cjs
+*.cjs
+service-account.json
