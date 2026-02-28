@@ -445,7 +445,7 @@ export default function App() {
     const [couponCode, setCouponCode] = useState("");
     const [discount, setDiscount] = useState(0);
 
-    // טעינת נתונים (מוצרים, קופונים, משתמשים)
+    // טעינת נתונים
     useEffect(() => {
         const unsubP = onSnapshot(collection(db, "products"), s => setProducts(s.docs.map(d => ({id: d.id, ...d.data()}))));
         const unsubC = onSnapshot(collection(db, "coupons"), s => setCoupons(s.docs.map(d => d.data())));
@@ -455,7 +455,6 @@ export default function App() {
         return () => { unsubP(); unsubC(); unsubU(); };
     }, []);
 
-    // התחברות עם גוגל
     const handleGoogleLogin = async () => {
         try {
             const provider = new GoogleAuthProvider();
@@ -469,33 +468,24 @@ export default function App() {
             setIsAuthModalOpen(false);
         } catch (error) { 
             console.error(error); 
-            if(error.code !== 'auth/popup-closed-by-user') alert("שגיאה בהתחברות לגוגל.");
         }
     };
 
-    // התחברות עם אימייל וסיסמה!
     const handleEmailLogin = async (email, password, isSignUp) => {
         try {
             if (isSignUp) {
                 const result = await createUserWithEmailAndPassword(auth, email, password);
                 await setDoc(doc(db, "users", result.user.uid), {
-                    name: email.split('@')[0],
-                    email: result.user.email,
-                    lastLogin: serverTimestamp()
+                    name: email.split('@')[0], email: result.user.email, lastLogin: serverTimestamp()
                 }, { merge: true });
                 alert("ברוכים הבאים למועדון SmartBuy!");
             } else {
-                const result = await signInWithEmailAndPassword(auth, email, password);
-                await setDoc(doc(db, "users", result.user.uid), {
-                    lastLogin: serverTimestamp()
-                }, { merge: true });
+                await signInWithEmailAndPassword(auth, email, password);
             }
             setIsAuthModalOpen(false);
         } catch (error) {
             console.error(error);
-            if (error.code === 'auth/email-already-in-use') alert("האימייל הזה כבר קיים במערכת, נסו להתחבר.");
-            else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') alert("אימייל או סיסמה שגויים.");
-            else alert("שגיאה: " + error.message);
+            alert("שגיאה: אימייל או סיסמה שגויים.");
         }
     };
 
@@ -571,16 +561,12 @@ export default function App() {
         <HelmetProvider>
             <div className="min-h-screen bg-gray-50 text-right font-assistant overflow-x-hidden" dir="rtl">
                 
-                {/* Admin Panel */}
                 {isAdminOpen && isAdmin && <AdminPanel onClose={()=>setIsAdminOpen(false)} products={products} coupons={coupons} users={users} />}
-
-                {/* Modals פתוחים */}
                 {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={handleAddReview} brandLogo={brandLogos[selectedProduct.brand]} />}
                 {isCompareOpen && <ComparisonModal list={compareList} onClose={()=>setIsCompareOpen(false)} onRemove={(id)=>setCompareList(compareList.filter(i=>i.id!==id))} />}
                 {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
                 {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} />}
 
-                {/* Header */}
                 <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-4 border-[#FFD814] py-4 px-4 md:px-6">
                     <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-6 w-full md:w-auto justify-between">
@@ -595,7 +581,6 @@ export default function App() {
                         </div>
                         <div className="flex items-center gap-3">
                             {isAdmin && <button onClick={()=>setIsAdminOpen(true)} className="bg-red-600 text-white text-[10px] font-black px-3 py-2 rounded-lg hover:bg-red-700"><i className="fa-solid fa-gear"></i> ניהול</button>}
-                            
                             {user ? (
                                 <div className="text-xs font-bold text-center border-l pr-3 border-white/20">שלום,<br/>{user.displayName?.split(' ')[0] || 'לקוח'}</div>
                             ) : (
@@ -608,7 +593,6 @@ export default function App() {
                     </div>
                 </header>
 
-                {/* Navbar תמונות קטגוריה */}
                 <nav className="bg-white border-b sticky top-[135px] md:top-[80px] z-40 overflow-x-auto py-4 px-4 shadow-sm scrollbar-hide">
                     <div className="max-w-7xl mx-auto flex gap-4 md:justify-center min-w-max">
                         {Object.keys(categoryMap).map(cat => {
@@ -631,7 +615,6 @@ export default function App() {
 
                 <HeroSlider products={products} />
 
-                {/* סרגל עליון רוחבי (סינון וטיפים) */}
                 <div className="max-w-7xl mx-auto px-4 md:px-8 mt-8">
                     <div className="flex flex-col lg:flex-row gap-6 mb-8">
                         <div className="bg-white p-6 rounded-[30px] shadow-sm border flex-grow flex flex-col md:flex-row gap-8 items-center z-10 relative">
@@ -661,7 +644,6 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* אזור מוצרים (נגלל אופקית) */}
                 <main className="max-w-7xl mx-auto p-4 md:p-8 pt-0 space-y-16">
                     {filter === "All" && !searchQuery && selectedBrands.length === 0 ? (
                         Object.keys(categorizedGroups).map(catKey => (
@@ -672,7 +654,7 @@ export default function App() {
                                 </div>
                                 <div className="flex overflow-x-auto gap-4 pb-6 hide-scroll snap-x scroll-smooth w-full">
                                     {categorizedGroups[catKey].map(p => (
-                                        <div key={p.id} className="w-[260px] min-w-[260px] max-w-[260px] flex-none snap-start bg-white p-5 rounded-3xl shadow-sm border relative group hover:shadow-lg transition-all flex flex-col justify-between">
+                                        <div key={p.id} className="w-[280px] min-w-[280px] max-w-[280px] flex-none snap-start bg-white p-5 rounded-3xl shadow-sm border relative group hover:shadow-lg transition-all flex flex-col justify-between">
                                             {p.isRecommended && <div className="absolute top-0 right-0 bg-[#FFD814] text-[#1e3a8a] text-[9px] font-black px-3 py-1 rounded-bl-xl z-20 shadow-sm"><i className="fa-solid fa-crown"></i> בחירת מומחה</div>}
                                             <div className="absolute top-4 right-4 z-10 opacity-30 group-hover:opacity-100 transition-opacity">
                                                 {brandLogos[p.brand] && <img src={brandLogos[p.brand]} className="h-4 w-auto object-contain grayscale group-hover:grayscale-0" alt="brand" />}
@@ -686,8 +668,8 @@ export default function App() {
                                             <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
                                             <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
                                             
-                                            {/* --- קוביית מחירי המתחרים (דף הבית) --- */}
-                                            <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right">
+                                            {/* --- קוביית מחירי המתחרים (שורות נגללות) --- */}
+                                            <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right w-full">
                                                 <div className="text-[10px] font-black text-gray-400 mb-2 border-b pb-1">השוואת מחירי שוק:</div>
                                                 <div className="flex justify-between items-center text-[10px] mb-1">
                                                     <span className="text-gray-600">מחסני חשמל:</span>
@@ -712,7 +694,7 @@ export default function App() {
                                                     <span className="text-2xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
                                                 </div>
                                             </div>
-                                            {/* ------------------------------------ */}
+                                            {/* ------------------------------------------- */}
 
                                             <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black hover:bg-[#f3ce12] transition-all text-xs">הוספה לסל</button>
                                         </div>
@@ -726,20 +708,20 @@ export default function App() {
                                  <h2 className="text-xl font-black text-[#1e3a8a]">{filter === "All" ? "תוצאות חיפוש" : categoryMap[filter]}</h2>
                                  <span className="bg-[#1e3a8a] text-white px-3 py-1 rounded-lg text-xs font-black">{filtered.length} פריטים</span>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {filtered.map(p => (
                                     <div key={p.id} className="bg-white p-5 rounded-3xl shadow-sm border relative hover:shadow-lg transition-all flex flex-col justify-between">
                                         <button onClick={()=>addToCompare(p)} className={`absolute top-4 left-4 w-8 h-8 rounded-full flex items-center justify-center transition-all z-20 ${compareList.find(i=>i.id===p.id) ? 'bg-[#FFD814] text-[#1e3a8a]' : 'bg-gray-50 text-gray-400 hover:bg-[#1e3a8a] hover:text-white'}`}>
                                             <i className="fa-solid fa-code-compare text-[10px]"></i>
                                         </button>
-                                        <div className="h-32 flex items-center justify-center mb-4 mt-4 cursor-pointer" onClick={() => setSelectedProduct(p)}>
+                                        <div className="h-40 flex items-center justify-center mb-4 mt-4 cursor-pointer" onClick={() => setSelectedProduct(p)}>
                                             <img src={p.image} className="max-h-full object-contain hover:scale-105 transition-transform" alt={p.name} />
                                         </div>
                                         <div className="text-[#FFD814] text-[10px] mb-1">★★★★★</div>
                                         <h3 className="font-bold text-gray-800 text-xs mb-3 h-8 line-clamp-2 cursor-pointer hover:text-[#1e3a8a]" onClick={() => setSelectedProduct(p)}>{p.name}</h3>
                                         
-                                        {/* --- קוביית מחירי המתחרים (דף תוצאות) --- */}
-                                        <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right">
+                                        {/* --- קוביית מחירי המתחרים (דף תוצאות חיפוש/קטגוריה) --- */}
+                                        <div className="bg-gray-50 p-3 rounded-2xl mb-4 border shadow-inner text-right w-full">
                                             <div className="text-[10px] font-black text-gray-400 mb-2 border-b pb-1">השוואת מחירי שוק:</div>
                                             <div className="flex justify-between items-center text-[10px] mb-1">
                                                 <span className="text-gray-600">מחסני חשמל:</span>
@@ -764,7 +746,7 @@ export default function App() {
                                                 <span className="text-2xl font-black text-[#1e3a8a]">₪{p.sellingPrice}</span>
                                             </div>
                                         </div>
-                                        {/* ------------------------------------ */}
+                                        {/* ---------------------------------------------------- */}
 
                                         <button onClick={() => {setCart([...cart, p]); setIsCartOpen(true);}} className="w-full bg-[#FFD814] text-[#1e3a8a] py-3 rounded-xl font-black text-xs hover:bg-[#f3ce12] transition-all">הוספה לסל</button>
                                     </div>
@@ -774,7 +756,6 @@ export default function App() {
                     )}
                 </main>
 
-                {/* Footer קצר וקולע */}
                 <footer className="bg-[#1e3a8a] text-white py-16 px-6 border-t-8 border-[#FFD814] mt-20">
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
                         <div>
@@ -808,7 +789,6 @@ export default function App() {
                         </div>
                         <button onClick={()=>setIsCartOpen(false)} className="text-2xl text-gray-300 hover:text-white transition-colors"><i className="fa-solid fa-xmark"></i></button>
                     </div>
-                    
                     <div className="p-4 overflow-y-auto h-[60vh] space-y-4 bg-gray-50">
                         {cart.length === 0 ? (
                             <div className="text-center py-20 text-gray-400 font-bold">הסל מחכה להתמלא...</div>
@@ -825,26 +805,21 @@ export default function App() {
                             ))
                         )}
                     </div>
-
                     <div className="p-6 border-t bg-white absolute bottom-0 w-full shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                         <div className="flex gap-2 mb-4">
                             <input type="text" placeholder="קופון (נסה SMART10)" value={couponCode} onChange={e=>setCouponCode(e.target.value)} className="w-full border p-3 rounded-xl outline-none text-xs font-bold bg-gray-50 uppercase" />
                             <button onClick={applyCoupon} className="bg-[#1e3a8a] text-white px-4 rounded-xl font-bold text-xs hover:bg-blue-800">הפעל</button>
                         </div>
-                        
                         {discount > 0 && <div className="text-green-600 text-xs font-bold mb-4 text-center">הנחה הופעלה ({discount * 100}%)</div>}
-                        
                         <div className="flex justify-between items-center mb-6">
                             <span className="font-bold text-gray-500 text-sm">סה"כ לתשלום:</span>
                             <span className="text-3xl font-black text-[#1e3a8a]">₪{cartTotal}</span>
                         </div>
-                        
                         <button onClick={()=>{ setIsCartOpen(false); setIsCheckoutOpen(true); }} className="w-full bg-[#FFD814] text-[#1e3a8a] py-4 rounded-xl font-black text-lg shadow-md hover:bg-yellow-400 transition-all flex justify-center gap-2 items-center">
                             מעבר לקופה <i className="fa-solid fa-lock text-xs"></i>
                         </button>
                     </div>
                 </div>
-
                 {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[450] transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
             </div>
         </HelmetProvider>

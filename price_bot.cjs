@@ -7,7 +7,7 @@ if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(
 const db = admin.firestore();
 
 // מפתח ה-API של ג'מיני שלך
-const genAI = new GoogleGenerativeAI("AIzaSyBDVKnGKj19klPskxLrep4tXvWHmjxd8go");
+const genAI = new GoogleGenerativeAI("AIzaSyAmMtZZ5UQUtklRcbOHnsoOZdxacofhrK8");
 
 async function fetchCompetitorPrices() {
     console.log("🤖 בוט המחירים: מתחיל לסרוק מחירי מתחרים (מחסני חשמל, א.ל.מ, ליאור)...");
