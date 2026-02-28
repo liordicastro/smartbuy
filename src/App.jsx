@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, arrayUnion, addDoc, serverTimestamp, setDoc, deleteDoc } from "firebase/firestore";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
+// הוספנו כאן את פונקציות המייל והסיסמה של פיירבייס!
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { Helmet, HelmetProvider } from 'react-helmet-async';
 
 // --- הגדרות Firebase ---
@@ -88,7 +89,7 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                                         <tr key={p.id} className="border-b hover:bg-gray-50 transition-colors">
                                             <td className="p-4"><img src={p.image} className="w-12 h-12 object-contain rounded" alt="img"/></td>
                                             <td className="p-4 font-bold text-gray-700">{p.name}</td>
-                                            <td className="p-4"><input type="number" defaultValue={p.sellingPrice} onBlur={(e) => handleUpdateProduct(p.id, 'sellingPrice', Number(e.target.value))} className="border-2 p-2 rounded-lg w-24 text-center font-bold" /></td>
+                                            <td className="p-4"><input type="number" defaultValue={p.sellingPrice} onBlur={(e) => handleUpdateProduct(p.id, 'sellingPrice', Number(e.target.value))} className="border-2 p-2 rounded-lg w-24 text-center font-bold outline-none focus:border-[#1e3a8a]" /></td>
                                             <td className="p-4 text-center"><input type="checkbox" checked={p.isHero || false} onChange={(e) => handleUpdateProduct(p.id, 'isHero', e.target.checked)} className="w-5 h-5 accent-[#1e3a8a]" /></td>
                                             <td className="p-4 text-center"><input type="checkbox" checked={p.isRecommended || false} onChange={(e) => handleUpdateProduct(p.id, 'isRecommended', e.target.checked)} className="w-5 h-5 accent-[#FFD814]" /></td>
                                         </tr>
@@ -116,7 +117,7 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                             <form onSubmit={handleAddCoupon} className="bg-white p-6 rounded-2xl shadow-sm border space-y-4">
                                 <input required placeholder="קוד (למשל VIP20)" value={newCoupon.code} onChange={e=>setNewCoupon({...newCoupon, code: e.target.value})} className="w-full border-2 p-3 rounded-xl uppercase font-bold" />
                                 <input required type="number" min="1" max="99" value={newCoupon.discount} onChange={e=>setNewCoupon({...newCoupon, discount: e.target.value})} className="w-full border-2 p-3 rounded-xl font-bold" placeholder="אחוז הנחה" />
-                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-black">צור קופון</button>
+                                <button type="submit" className="w-full bg-[#1e3a8a] text-white py-3 rounded-xl font-black hover:bg-blue-800">צור קופון</button>
                             </form>
                         </div>
                     </div>
@@ -124,7 +125,7 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                 {activeTab === 'users' && (
                     <div>
                         <h2 className="text-3xl font-black text-gray-800 mb-8">חברי מועדון רשומים</h2>
-                        <div className="bg-white rounded-2xl shadow-sm border p-6 grid grid-cols-3 gap-4">
+                        <div className="bg-white rounded-2xl shadow-sm border p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                             {users.map(u => (
                                 <div key={u.id} className="border p-4 rounded-xl flex items-center gap-4">
                                     <div className="w-12 h-12 bg-blue-100 text-[#1e3a8a] rounded-full flex items-center justify-center font-black text-xl">{u.name?.charAt(0) || 'U'}</div>
@@ -139,7 +140,7 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
                         <i className="fa-solid fa-robot text-7xl text-gray-200 mb-6"></i>
                         <h3 className="text-xl font-black text-gray-800 mb-4">עדכון מחירים מלאי ומפרטים</h3>
                         <p className="text-gray-500 mb-8 text-sm leading-relaxed">הפעלת הסקריפט (Puppeteer) תריץ בוט על חנויות המתחרים ותעדכן מחירים אוטומטית.</p>
-                        <button onClick={handleRunScraper} disabled={isUpdating} className={`w-full py-4 rounded-2xl font-black text-xl flex justify-center items-center gap-3 text-[#1e3a8a] transition-all ${isUpdating ? 'bg-gray-200' : 'bg-[#FFD814] shadow-lg hover:scale-105'}`}>
+                        <button onClick={handleRunScraper} disabled={isUpdating} className={`w-full py-4 rounded-2xl font-black text-xl flex justify-center items-center gap-3 text-[#1e3a8a] transition-all ${isUpdating ? 'bg-gray-200 cursor-not-allowed' : 'bg-[#FFD814] shadow-lg hover:scale-105'}`}>
                             {isUpdating ? <><i className="fa-solid fa-circle-notch fa-spin"></i> מעדכן נתונים...</> : <><i className="fa-solid fa-bolt"></i> הפעל בוט סריקה</>}
                         </button>
                     </div>
@@ -150,32 +151,67 @@ const AdminPanel = ({ onClose, products, coupons, users }) => {
 };
 
 // ==========================================
-// 2. מודאל הרשמה למועדון 
+// 2. מודאל הרשמה למועדון (עם טופס אימייל אמיתי!)
 // ==========================================
-const AuthModal = ({ onClose, onGoogleLogin }) => (
-    <div className="fixed inset-0 bg-black/60 z-[800] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-        <div className="bg-white rounded-[35px] w-full max-w-md p-8 relative text-center shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
-            <button onClick={onClose} className="absolute top-5 left-5 text-gray-400 hover:text-black text-2xl font-bold"><i className="fa-solid fa-xmark"></i></button>
-            <div className="text-6xl mb-4 text-[#FFD814]">👑</div>
-            <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">מועדון SmartBuy</h2>
-            <p className="text-gray-500 mb-8 font-bold text-sm">התחברו כדי לקבל הטבות VIP, הנחות אישיות ומעקב הזמנות.</p>
-            <div className="space-y-3">
-                <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
-                    <i className="fa-brands fa-google text-red-500 text-xl"></i> התחברות עם חשבון Google
-                </button>
-                <button onClick={()=>alert('התחברות דרך אפל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
-                    <i className="fa-brands fa-apple text-xl text-black"></i> התחברות עם Apple ID
-                </button>
-                <button onClick={()=>alert('התחברות במייל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
-                    <i className="fa-regular fa-envelope text-xl text-blue-500"></i> התחברות עם אימייל
-                </button>
-                <button onClick={()=>alert('התחברות ב-SMS תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
-                    <i className="fa-solid fa-mobile-screen text-xl text-green-500"></i> קוד חד פעמי (SMS)
-                </button>
+const AuthModal = ({ onClose, onGoogleLogin, onEmailLogin }) => {
+    const [method, setMethod] = useState('main'); // 'main' או 'email'
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onEmailLogin(email, password, isSignUp);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 z-[800] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-[35px] w-full max-w-md p-8 relative text-center shadow-2xl border-4 border-[#1e3a8a]" onClick={e=>e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-5 left-5 text-gray-400 hover:text-black text-2xl font-bold"><i className="fa-solid fa-xmark"></i></button>
+                
+                <div className="text-6xl mb-4 text-[#FFD814]">👑</div>
+                <h2 className="text-3xl font-black text-[#1e3a8a] mb-2">מועדון SmartBuy</h2>
+                <p className="text-gray-500 mb-8 font-bold text-sm">התחברו לקבלת הטבות VIP והנחות מיוחדות.</p>
+
+                {method === 'main' ? (
+                    <div className="space-y-4">
+                        <button onClick={onGoogleLogin} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                            <i className="fa-brands fa-google text-red-500 text-xl"></i> התחברות מהירה עם Google
+                        </button>
+                        <button onClick={()=>setMethod('email')} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-4 rounded-2xl font-black hover:bg-gray-50 transition-all text-gray-700 shadow-sm">
+                            <i className="fa-regular fa-envelope text-xl text-blue-500"></i> התחברות עם אימייל וסיסמה
+                        </button>
+                        <button onClick={()=>alert('התחברות דרך אפל תתאפשר בקרוב.')} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 p-4 rounded-2xl font-black transition-all text-gray-400 opacity-70 cursor-not-allowed">
+                            <i className="fa-brands fa-apple text-xl"></i> Apple ID (בקרוב)
+                        </button>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="space-y-5 text-right" dir="rtl">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">כתובת אימייל</label>
+                            <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full border-2 p-4 rounded-xl outline-none focus:border-[#1e3a8a] text-sm font-bold" placeholder="name@example.com" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">סיסמה</label>
+                            <input type="password" required minLength="6" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border-2 p-4 rounded-xl outline-none focus:border-[#1e3a8a] text-sm font-bold" placeholder="לפחות 6 תווים" />
+                        </div>
+                        <button type="submit" className="w-full bg-[#1e3a8a] text-white py-4 rounded-xl font-black shadow-md hover:bg-blue-800 transition-colors text-lg">
+                            {isSignUp ? 'הירשם למועדון' : 'היכנס לחשבון'}
+                        </button>
+                        <div className="flex justify-between items-center mt-4 border-t pt-4">
+                            <button type="button" onClick={()=>setIsSignUp(!isSignUp)} className="text-sm font-bold text-blue-600 hover:underline">
+                                {isSignUp ? 'יש לך כבר חשבון? התחבר' : 'משתמש חדש? הירשם כאן'}
+                            </button>
+                            <button type="button" onClick={()=>setMethod('main')} className="text-xs font-bold text-gray-400 hover:text-black bg-gray-100 px-3 py-1 rounded-lg">
+                                חזור
+                            </button>
+                        </div>
+                    </form>
+                )}
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // ==========================================
 // 3. מודאל השוואת מוצרים
@@ -262,7 +298,7 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
                             <i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star"></i><i className="fa-solid fa-star-half-stroke"></i>
                         </div>
                         <div className="w-full bg-white p-6 rounded-3xl shadow-sm text-center border">
-                            <div className="text-[10px] font-black text-gray-400 uppercase mb-1">מחיר מומלץ: ₪{Math.round(product.sellingPrice * 1.25)}</div>
+                            <div className="text-[10px] font-black text-gray-400 uppercase mb-1">מחיר מומלץ לצרכן: ₪{Math.round(product.sellingPrice * 1.25)}</div>
                             <div className="text-5xl font-black text-[#1e3a8a] mb-6">₪{product.sellingPrice}</div>
                             <button onClick={() => { onAddToCart(product); onClose(); }} className="w-full bg-[#FFD814] text-[#1e3a8a] font-black py-4 rounded-[20px] text-lg shadow-md hover:scale-105 active:scale-95 transition-all">הוספה לסל המאובטח</button>
                         </div>
@@ -288,6 +324,21 @@ const ProductModal = ({ product, onClose, onAddToCart, onAddReview, brandLogo })
                                 </div>
                             </section>
                         )}
+                        <section className="pt-6 border-t-2 border-dashed">
+                            <h4 className="font-black text-[#1e3a8a] text-xl mb-6">חוות דעת של לקוחות שקנו</h4>
+                            <div className="space-y-4 mb-6">
+                                {product.reviews?.map((rev, i) => (
+                                    <div key={i} className="bg-white p-4 rounded-2xl border shadow-sm">
+                                        <div className="flex justify-between text-xs mb-2 font-black text-[#1e3a8a]">
+                                            <span>{rev.name}</span>
+                                            <div className="text-[#FFD814]">{[...Array(rev.rating)].map((_,s)=><i key={s} className="fa-solid fa-star"></i>)}</div>
+                                        </div>
+                                        <p className="text-gray-600 text-xs italic leading-relaxed">"{rev.text}"</p>
+                                    </div>
+                                ))}
+                                {(!product.reviews || product.reviews.length === 0) && <p className="text-sm font-bold text-gray-400 text-center py-4">היו הראשונים לדרג מוצר זה!</p>}
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -301,7 +352,7 @@ const CheckoutModal = ({ cart, total, onClose, onClearCart }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         await addDoc(collection(db, "orders"), { customer: formData, items: cart, totalAmount: total, status: 'חדש', createdAt: serverTimestamp() });
-        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה ב-SmartBuy!*%0Aשם: ${formData.name}%0Aסה"כ: ₪${total}`, '_blank');
+        window.open(`https://wa.me/972544914204?text=*הזמנה חדשה ב-SmartBuy!*%0Aשם: ${formData.name}%0Aסה"כ לתשלום: ₪${total}`, '_blank');
         onClearCart(); onClose();
     };
     return (
@@ -405,22 +456,47 @@ export default function App() {
         return () => { unsubP(); unsubC(); unsubU(); };
     }, []);
 
-    // פונקציית התחברות (מעודכנת! שומרת במסד וסוגרת את החלון)
+    // התחברות עם גוגל
     const handleGoogleLogin = async () => {
         try {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
-            // שמירת נתוני המשתמש למסד כדי שיופיעו באדמין
             await setDoc(doc(db, "users", result.user.uid), {
                 name: result.user.displayName,
                 email: result.user.email,
                 photo: result.user.photoURL,
                 lastLogin: serverTimestamp()
             }, { merge: true });
-            setIsAuthModalOpen(false); // סגירת המודאל
+            setIsAuthModalOpen(false);
         } catch (error) { 
             console.error(error); 
-            alert("ההתחברות בוטלה או נכשלה.");
+            if(error.code !== 'auth/popup-closed-by-user') alert("שגיאה בהתחברות לגוגל.");
+        }
+    };
+
+    // התחברות עם אימייל וסיסמה!
+    const handleEmailLogin = async (email, password, isSignUp) => {
+        try {
+            if (isSignUp) {
+                const result = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "users", result.user.uid), {
+                    name: email.split('@')[0],
+                    email: result.user.email,
+                    lastLogin: serverTimestamp()
+                }, { merge: true });
+                alert("ברוכים הבאים למועדון SmartBuy!");
+            } else {
+                const result = await signInWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "users", result.user.uid), {
+                    lastLogin: serverTimestamp()
+                }, { merge: true });
+            }
+            setIsAuthModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            if (error.code === 'auth/email-already-in-use') alert("האימייל הזה כבר קיים במערכת, נסו להתחבר.");
+            else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') alert("אימייל או סיסמה שגויים.");
+            else alert("שגיאה: " + error.message);
         }
     };
 
@@ -496,14 +572,15 @@ export default function App() {
         <HelmetProvider>
             <div className="min-h-screen bg-gray-50 text-right font-assistant overflow-x-hidden" dir="rtl">
                 
-                {/* Admin Panel (מוסתר ומאובטח) */}
+                {/* Admin Panel */}
                 {isAdminOpen && isAdmin && <AdminPanel onClose={()=>setIsAdminOpen(false)} products={products} coupons={coupons} users={users} />}
 
                 {/* Modals פתוחים */}
                 {selectedProduct && <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddToCart={(p) => {setCart([...cart, p]); setIsCartOpen(true);}} onAddReview={handleAddReview} brandLogo={brandLogos[selectedProduct.brand]} />}
                 {isCompareOpen && <ComparisonModal list={compareList} onClose={()=>setIsCompareOpen(false)} onRemove={(id)=>setCompareList(compareList.filter(i=>i.id!==id))} />}
                 {isCheckoutOpen && <CheckoutModal cart={cart} total={cartTotal} onClose={()=>setIsCheckoutOpen(false)} onClearCart={()=>setCart([])} />}
-                {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={handleGoogleLogin} />}
+                {/* כאן עברנו לפונקציונליות ההרשמה החדשה! */}
+                {isAuthModalOpen && <AuthModal onClose={()=>setIsAuthModalOpen(false)} onGoogleLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} />}
 
                 {/* Header */}
                 <header className="bg-[#1e3a8a] text-white sticky top-0 z-50 shadow-2xl border-b-4 border-[#FFD814] py-4 px-4 md:px-6">
@@ -519,11 +596,10 @@ export default function App() {
                             <i className="fa-solid fa-magnifying-glass absolute right-3 top-4 text-gray-400"></i>
                         </div>
                         <div className="flex items-center gap-3">
-                            {/* כפתור כניסה לאדמין במידה וזה המנהל */}
                             {isAdmin && <button onClick={()=>setIsAdminOpen(true)} className="bg-red-600 text-white text-[10px] font-black px-3 py-2 rounded-lg hover:bg-red-700"><i className="fa-solid fa-gear"></i> ניהול</button>}
                             
                             {user ? (
-                                <div className="text-xs font-bold text-center border-l pr-3 border-white/20">שלום,<br/>{user.displayName?.split(' ')[0]}</div>
+                                <div className="text-xs font-bold text-center border-l pr-3 border-white/20">שלום,<br/>{user.displayName?.split(' ')[0] || 'לקוח'}</div>
                             ) : (
                                 <button onClick={()=>setIsAuthModalOpen(true)} className="text-[10px] font-black bg-white/10 text-white px-3 py-2 rounded-lg hover:bg-white/20 transition-all">חברי מועדון 👑</button>
                             )}
@@ -587,7 +663,7 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* אזור מוצרים (נגלל אופקית) */}
+                {/* אזור מוצרים */}
                 <main className="max-w-7xl mx-auto p-4 md:p-8 pt-0 space-y-16">
                     {filter === "All" && !searchQuery && selectedBrands.length === 0 ? (
                         Object.keys(categorizedGroups).map(catKey => (
@@ -647,7 +723,7 @@ export default function App() {
                     )}
                 </main>
 
-                {/* Footer */}
+                {/* Footer קצר וקולע */}
                 <footer className="bg-[#1e3a8a] text-white py-16 px-6 border-t-8 border-[#FFD814] mt-20">
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10">
                         <div>
@@ -672,7 +748,7 @@ export default function App() {
                     </div>
                 </footer>
 
-                {/* עגלת קניות ללא טשטוש מסך */}
+                {/* Cart Drawer */}
                 <div className={`fixed top-0 right-0 h-full w-80 md:w-[400px] bg-white shadow-2xl z-[500] transition-transform duration-500 border-l-8 border-[#1e3a8a] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                     <div className="p-6 bg-[#1e3a8a] text-white flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -718,7 +794,6 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* צל עדין לסל - ללא טשטוש (Blur) */}
                 {isCartOpen && <div className="fixed inset-0 bg-black/40 z-[450] transition-opacity" onClick={() => setIsCartOpen(false)}></div>}
             </div>
         </HelmetProvider>
