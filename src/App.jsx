@@ -18,7 +18,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // הגדרת אימייל מנהל (שנה למייל האמיתי שלך של Google איתו תתחבר)
-const ADMIN_EMAIL = "admin@smartbuy.co.il"; 
+const ADMIN_EMAIL = "liordicastro@gmail.com"; 
 
 // ==========================================
 // פאנל ניהול (Backoffice)
